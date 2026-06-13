@@ -6,6 +6,8 @@ import ClientForm from '../components/ClientForm.jsx';
 import { clientService } from '../services/clientService.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
 
+const getArrayData = (response) => Array.isArray(response?.data) ? response.data : [];
+
 export default function ClientsPage() {
   const [clients, setClients] = useState([]);
   const [editing, setEditing] = useState(null);
@@ -20,7 +22,7 @@ export default function ClientsPage() {
     setLoading(true);
     try {
       const response = await clientService.getAll();
-      setClients(response.data);
+      setClients(getArrayData(response));
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -33,7 +35,7 @@ export default function ClientsPage() {
   }, []);
 
   const filteredClients = useMemo(
-    () => clients.filter((client) => `${client.nombre} ${client.telefono || ''}`.toLowerCase().includes(search.toLowerCase())),
+    () => clients.filter((client) => `${client.nombre || ''} ${client.telefono || ''}`.toLowerCase().includes(search.toLowerCase())),
     [clients, search]
   );
 
@@ -85,8 +87,8 @@ export default function ClientsPage() {
   };
 
   return (
-    <div className="space-y-5">
-      <GlassCard className="flex flex-col gap-3 sm:flex-row sm:items-end">
+    <div className="clients-view space-y-5">
+      <GlassCard className="management-toolbar flex flex-col gap-3 sm:flex-row sm:items-end">
         <label className="field-label flex-1">
           Buscar cliente
           <div className="relative">
@@ -94,35 +96,35 @@ export default function ClientsPage() {
             <input className="field-input with-icon" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nombre o teléfono" />
           </div>
         </label>
-        <button className="soft-button h-12" onClick={() => { setEditing(null); setShowForm(true); }}>
+        <button className="management-primary-action soft-button h-12" onClick={() => { setEditing(null); setShowForm(true); }}>
           <UserPlus size={18} /> Cliente
         </button>
       </GlassCard>
 
       {showForm && (
-        <GlassCard>
+        <GlassCard className="management-form-card">
           <ClientForm client={editing} onSubmit={saveClient} onCancel={() => { setShowForm(false); setEditing(null); }} />
         </GlassCard>
       )}
 
       {loading ? <GlassCard>Cargando clientes...</GlassCard> : (
-        <div className="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="clients-grid content-grid grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredClients.map((client) => {
             const quotes = quotesByClient[client.id] || [];
             const isHistoryOpen = openHistoryId === client.id;
             const isLoadingHistory = historyLoadingId === client.id;
 
             return (
-              <GlassCard key={client.id} className="self-start">
-                <div className="flex min-h-36 flex-col justify-between gap-5">
+              <GlassCard key={client.id} className="client-card self-start">
+                <div className="client-card-body flex min-h-36 flex-col justify-between gap-5">
                   <div>
-                    <h2 className="text-xl font-semibold">{client.nombre}</h2>
-                    <p className="mt-3 flex items-center gap-2 text-zinc-400">
+                    <h2 className="client-name text-xl font-semibold">{client.nombre}</h2>
+                    <p className="client-phone mt-3 flex items-center gap-2 text-zinc-400">
                       <Phone size={17} /> {client.telefono || 'Sin teléfono'}
                     </p>
                   </div>
 
-                  <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="client-actions grid gap-2 sm:grid-cols-2">
                     <button className="ghost-button w-full" onClick={() => toggleHistory(client)}>
                       <History size={18} /> Historial
                       {isHistoryOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -136,7 +138,7 @@ export default function ClientsPage() {
                   </div>
 
                   {isHistoryOpen && (
-                    <div className="space-y-2 rounded-[1.4rem] border border-white/10 bg-black/20 p-3 shadow-insetSoft">
+                    <div className="client-history space-y-2 rounded-[1.4rem] border border-white/10 bg-black/20 p-3 shadow-insetSoft">
                       {isLoadingHistory && (
                         <p className="text-sm text-zinc-400">Cargando historial...</p>
                       )}

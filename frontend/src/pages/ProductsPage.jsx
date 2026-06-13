@@ -7,6 +7,8 @@ import ProductForm from '../components/ProductForm.jsx';
 import { productService } from '../services/productService.js';
 import { categoryService } from '../services/categoryService.js';
 
+const getArrayData = (response) => Array.isArray(response?.data) ? response.data : [];
+
 export default function ProductsPage() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -25,8 +27,8 @@ export default function ProductsPage() {
         productService.getAll(selectedCategory ? { categoria: selectedCategory } : {}),
         categoryService.getAll()
       ]);
-      setProducts(productResponse.data);
-      setCategories(categoryResponse.data);
+      setProducts(getArrayData(productResponse));
+      setCategories(getArrayData(categoryResponse));
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -39,7 +41,7 @@ export default function ProductsPage() {
   }, [selectedCategory]);
 
   const filteredProducts = useMemo(
-    () => products.filter((product) => product.nombre.toLowerCase().includes(search.toLowerCase())),
+    () => products.filter((product) => String(product.nombre || '').toLowerCase().includes(search.toLowerCase())),
     [products, search]
   );
 
@@ -100,9 +102,9 @@ export default function ProductsPage() {
   };
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
+    <div className="management-layout grid gap-5 lg:grid-cols-[1fr_360px]">
       <section className="space-y-5">
-        <GlassCard className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <GlassCard className="management-toolbar flex flex-col gap-3 sm:flex-row sm:items-end">
           <label className="field-label flex-1">
             Buscar
             <div className="relative">
@@ -119,13 +121,13 @@ export default function ProductsPage() {
               ))}
             </select>
           </label>
-          <button className="soft-button h-12" onClick={() => { setEditing(null); setShowForm(true); }}>
+          <button className="management-primary-action soft-button h-12" onClick={() => { setEditing(null); setShowForm(true); }}>
             <Plus size={18} /> Producto
           </button>
         </GlassCard>
 
         {loading ? <GlassCard>Cargando productos...</GlassCard> : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="products-grid content-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filteredProducts.map((product) => (
               <ProductCard
                 key={product.id}
@@ -138,28 +140,28 @@ export default function ProductsPage() {
         )}
       </section>
 
-      <aside className="space-y-5">
+      <aside className="management-aside space-y-5">
         {showForm && (
-          <GlassCard>
-            <h2 className="mb-4 text-xl font-semibold">{editing ? 'Editar producto' : 'Crear producto'}</h2>
+          <GlassCard className="management-form-card">
+            <h2 className="management-card-title mb-4 text-xl font-semibold">{editing ? 'Editar producto' : 'Crear producto'}</h2>
             <ProductForm product={editing} categories={categories} onSubmit={saveProduct} onCancel={() => { setShowForm(false); setEditing(null); }} />
           </GlassCard>
         )}
 
-        <GlassCard>
+        <GlassCard className="category-card">
           <div className="mb-4 flex items-center gap-2">
             <Tags size={19} />
-            <h2 className="text-xl font-semibold">Categorías</h2>
+            <h2 className="management-card-title text-xl font-semibold">Categorías</h2>
           </div>
-          <form onSubmit={saveCategory} className="mb-4 flex gap-2">
+          <form onSubmit={saveCategory} className="category-form mb-4 flex gap-2">
             <input className="field-input" value={categoryName} onChange={(event) => setCategoryName(event.target.value)} placeholder="Nueva categoría" />
             <button className="icon-button h-12 w-12" type="submit" title="Guardar categoría">
               <FolderPlus size={18} />
             </button>
           </form>
-          <div className="space-y-2">
+          <div className="category-list space-y-2">
             {categories.map((category) => (
-              <div key={category.id} className="flex items-center justify-between rounded-full bg-black/25 px-4 py-2 text-sm">
+              <div key={category.id} className="category-row flex items-center justify-between rounded-full bg-black/25 px-4 py-2 text-sm">
                 <span>{category.nombre}</span>
                 <div className="flex gap-2 text-xs">
                   <button className="text-sky-200" onClick={() => { setEditingCategory(category); setCategoryName(category.nombre); }}>Editar</button>

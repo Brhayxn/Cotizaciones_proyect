@@ -11,6 +11,8 @@ import { quoteService } from '../services/quoteService.js';
 import { socket } from '../config/socket.js';
 
 const SCREEN_ID = 'pantalla-1';
+const getArrayData = (response) => Array.isArray(response?.data) ? response.data : [];
+const PRINT_FRAME_ID = 'quote-print-frame';
 
 export default function QuotePage() {
   const [products, setProducts] = useState([]);
@@ -31,9 +33,9 @@ export default function QuotePage() {
         categoryService.getAll(),
         clientService.getAll()
       ]);
-      setProducts(productResponse.data);
-      setCategories(categoryResponse.data);
-      setClients(clientResponse.data);
+      setProducts(getArrayData(productResponse));
+      setCategories(getArrayData(categoryResponse));
+      setClients(getArrayData(clientResponse));
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -47,7 +49,7 @@ export default function QuotePage() {
 
   const filteredProducts = useMemo(
     () => products.filter((product) => {
-      const matchesSearch = product.nombre.toLowerCase().includes(search.toLowerCase());
+      const matchesSearch = String(product.nombre || '').toLowerCase().includes(search.toLowerCase());
       const matchesCategory = category ? String(product.Categoria_id) === String(category) : true;
       return matchesSearch && matchesCategory;
     }),
@@ -59,7 +61,7 @@ export default function QuotePage() {
     if (term.length < 2) return [];
 
     return clients
-      .filter((client) => `${client.nombre} ${client.telefono || ''}`.toLowerCase().includes(term))
+      .filter((client) => `${client.nombre || ''} ${client.telefono || ''}`.toLowerCase().includes(term))
       .slice(0, 6);
   }, [clients, cliente.nombre, cliente.telefono]);
 
@@ -175,8 +177,31 @@ export default function QuotePage() {
       total,
       fecha: new Date().toISOString()
     }));
-    toast.success('Boleta lista para PDF');
-    window.open('/cotizacion/imprimir', '_blank', 'noopener,noreferrer');
+
+    const previousFrame = document.getElementById(PRINT_FRAME_ID);
+    previousFrame?.remove();
+
+    const frame = document.createElement('iframe');
+    frame.id = PRINT_FRAME_ID;
+    frame.title = 'Cotización para imprimir';
+    frame.src = `/cotizacion/imprimir?ts=${Date.now()}`;
+    frame.style.position = 'fixed';
+    frame.style.right = '0';
+    frame.style.bottom = '0';
+    frame.style.width = '1px';
+    frame.style.height = '1px';
+    frame.style.border = '0';
+    frame.style.opacity = '0';
+    frame.style.pointerEvents = 'none';
+
+    const removeFrame = () => window.setTimeout(() => frame.remove(), 800);
+    frame.addEventListener('load', () => {
+      frame.contentWindow?.addEventListener('afterprint', removeFrame, { once: true });
+      window.setTimeout(removeFrame, 60000);
+    }, { once: true });
+
+    document.body.appendChild(frame);
+    toast.success('Cotización lista para PDF');
   };
 
   const clearCart = () => {
@@ -189,8 +214,8 @@ export default function QuotePage() {
   };
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[1fr_390px]">
-      <section className="space-y-5">
+    <div className="quote-layout grid gap-5 lg:grid-cols-[minmax(0,1fr)_350px] xl:grid-cols-[minmax(0,1fr)_390px]">
+      <section className="quote-main space-y-5">
         <GlassCard className="grid gap-3 md:grid-cols-[1fr_240px]">
           <label className="field-label">
             Buscar productos
@@ -211,8 +236,8 @@ export default function QuotePage() {
         </GlassCard>
 
         {loading ? <GlassCard>Cargando productos activos...</GlassCard> : (
-          <div className="max-h-[calc(100vh-25rem)] min-h-[18rem] overflow-y-auto rounded-[2rem] pr-2 pb-28">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="quote-products-scroll overflow-y-auto rounded-[1.35rem] pb-4 pr-2 sm:rounded-[2rem]">
+            <div className="quote-products-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {filteredProducts.map((product) => (
                 <ProductCard key={product.id} product={product} onAdd={addToCart} compact />
               ))}

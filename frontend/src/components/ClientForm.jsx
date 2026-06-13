@@ -16,7 +16,7 @@ export default function ClientForm({ client, onSubmit, onCancel }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+    <form onSubmit={handleSubmit} className="client-form grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
       <label className="field-label">
         Nombre
         <input className="field-input" value={form.nombre} onChange={(event) => setForm({ ...form, nombre: event.target.value })} required />
@@ -25,7 +25,7 @@ export default function ClientForm({ client, onSubmit, onCancel }) {
         Teléfono
         <input className="field-input" value={form.telefono} onChange={(event) => setForm({ ...form, telefono: event.target.value })} />
       </label>
-      <div className="flex items-end gap-2">
+      <div className="form-actions flex items-end gap-2">
         <button className="soft-button h-12" type="submit">
           <Save size={18} />
         </button>

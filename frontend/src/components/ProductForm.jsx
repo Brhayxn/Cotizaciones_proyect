@@ -39,7 +39,7 @@ export default function ProductForm({ product, categories, onSubmit, onCancel })
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="product-form space-y-4">
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="field-label">
           Nombre
@@ -65,7 +65,7 @@ export default function ProductForm({ product, categories, onSubmit, onCancel })
         <input className="h-5 w-5 accent-sky-300" type="checkbox" name="activo" checked={form.activo} onChange={handleChange} />
         Producto activo
       </label>
-      <div className="flex flex-wrap gap-2">
+      <div className="form-actions flex flex-wrap gap-2">
         <button className="soft-button" type="submit">
           <Save size={18} /> Guardar
         </button>

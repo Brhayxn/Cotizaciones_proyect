@@ -33,13 +33,15 @@ export default function CartPanel({
     setIsClientSearchOpen(false);
   };
 
+  const isOverflowMode = cart.length > 1;
+
   return (
-    <GlassCard className="sticky top-5 flex max-h-[calc(100vh-10rem)] flex-col self-start p-3 lg:min-w-[370px]">
-      <div className="mb-2 flex items-center justify-between">
+    <GlassCard className={`cart-panel ${isOverflowMode ? 'cart-panel-overflow' : 'cart-panel-auto'} sticky top-5 flex max-h-[calc(100vh-10rem)] flex-col self-start p-3 lg:w-[350px] xl:w-[390px]`}>
+      <div className="cart-panel-header mb-2 flex items-center justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.28em] text-zinc-500">Carrito</p>
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-[1.65rem] font-semibold leading-none">Cotización</h2>
+            <h2 className="cart-panel-title text-[1.65rem] font-semibold leading-none">Cotización</h2>
             {isScreenLive && (
               <span className="rounded-full border border-red-400/40 bg-red-500/15 px-3 py-1 text-xs font-bold text-red-100">
                 En vivo
@@ -52,7 +54,7 @@ export default function CartPanel({
         </button>
       </div>
 
-      <div className="mb-2 grid gap-2">
+      <div className="cart-client-fields mb-2 grid gap-2 lg:grid-cols-[minmax(0,6fr)_minmax(0,4fr)]">
         <div className="relative">
           <input
             className="field-input compact-input"
@@ -87,14 +89,14 @@ export default function CartPanel({
         />
       </div>
 
-      <div className={`max-h-[11.2rem] space-y-2 overflow-y-auto pr-2 ${cart.length === 0 ? 'min-h-[7rem]' : ''}`}>
+      <div className={`cart-items space-y-2 overflow-y-auto pr-2 ${cart.length === 0 ? 'min-h-[4rem]' : ''}`}>
         {cart.length === 0 && (
           <div className="rounded-[1.5rem] border border-dashed border-white/10 p-6 text-center text-sm text-zinc-500">
             Agrega productos para construir la cotización.
           </div>
         )}
         {cart.map((item) => (
-          <div key={item.id} className="rounded-[1.25rem] border border-white/10 bg-black/20 p-2.5 shadow-insetSoft">
+          <div key={item.id} className="cart-item rounded-[1.25rem] border border-white/10 bg-black/20 p-2.5 shadow-insetSoft">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="font-medium">{item.nombre}</h3>
@@ -110,7 +112,7 @@ export default function CartPanel({
                   <Minus size={15} />
                 </button>
                 <input
-                  className="w-12 bg-transparent text-center text-sm outline-none"
+                  className="qty-input bg-transparent text-center text-sm outline-none"
                   type="number"
                   min="1"
                   value={item.cantidad}
@@ -126,12 +128,12 @@ export default function CartPanel({
         ))}
       </div>
 
-      <div className="mt-2 rounded-[1.45rem] border border-white/10 bg-white/[0.06] p-3">
+      <div className="cart-total mt-2 rounded-[1.45rem] border border-white/10 bg-white/[0.06] p-3">
         <div className="flex items-end justify-between">
           <span className="text-zinc-400">Total</span>
-          <strong className="font-display text-[1.9rem] text-white">{formatCurrency(total)}</strong>
+          <strong className="cart-total-value font-display text-[1.9rem] text-white">{formatCurrency(total)}</strong>
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="cart-actions mt-3 grid grid-cols-2 gap-2">
           <button className="soft-button" onClick={onShow}>
             <Send size={18} /> Mostrar
           </button>
