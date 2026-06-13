@@ -1,0 +1,43 @@
+require('dotenv').config();
+
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+
+const clienteRoutes = require('./routes/cliente.routes');
+const categoriaRoutes = require('./routes/categoria.routes');
+const productoRoutes = require('./routes/producto.routes');
+const cotizacionRoutes = require('./routes/cotizacion.routes');
+
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true, data: { status: 'running' } });
+});
+
+app.use('/api/clientes', clienteRoutes);
+app.use('/api/categorias', categoriaRoutes);
+app.use('/api/productos', productoRoutes);
+app.use('/api/cotizaciones', cotizacionRoutes);
+
+const frontendDistPath = path.resolve(__dirname, '../../frontend/dist');
+
+app.use(express.static(frontendDistPath));
+
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) return next();
+  return res.sendFile(path.join(frontendDistPath, 'index.html'));
+});
+
+app.use((req, res) => {
+  res.status(404).json({ ok: false, message: 'Ruta no encontrada' });
+});
+
+app.use((error, req, res, next) => {
+  res.status(500).json({ ok: false, message: 'Error interno del servidor' });
+});
+
+module.exports = app;
