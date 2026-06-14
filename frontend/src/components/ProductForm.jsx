@@ -4,6 +4,8 @@ import { Save, X } from 'lucide-react';
 const initialState = {
   nombre: '',
   precio: '',
+  descuento_maximo: 0,
+  stock: 0,
   Categoria_id: '',
   activo: true
 };
@@ -16,6 +18,8 @@ export default function ProductForm({ product, categories, onSubmit, onCancel })
       setForm({
         nombre: product.nombre || '',
         precio: product.precio || '',
+        descuento_maximo: product.descuento_maximo ?? 0,
+        stock: product.stock ?? 0,
         Categoria_id: product.Categoria_id || '',
         activo: product.activo !== false
       });
@@ -34,6 +38,8 @@ export default function ProductForm({ product, categories, onSubmit, onCancel })
     onSubmit({
       ...form,
       precio: Number(form.precio),
+      descuento_maximo: Number(form.descuento_maximo) || 0,
+      stock: Number(form.stock) || 0,
       Categoria_id: form.Categoria_id ? Number(form.Categoria_id) : null
     });
   };
@@ -48,6 +54,14 @@ export default function ProductForm({ product, categories, onSubmit, onCancel })
         <label className="field-label">
           Precio
           <input className="field-input" name="precio" type="number" min="1" value={form.precio} onChange={handleChange} required />
+        </label>
+        <label className="field-label">
+          Stock
+          <input className="field-input" name="stock" type="number" min="0" value={form.stock} onChange={handleChange} />
+        </label>
+        <label className="field-label">
+          Descuento máximo %
+          <input className="field-input" name="descuento_maximo" type="number" min="0" max="100" value={form.descuento_maximo} onChange={handleChange} />
         </label>
       </div>
       <label className="field-label">

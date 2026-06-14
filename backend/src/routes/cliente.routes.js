@@ -4,7 +4,7 @@ const controller = require('../controllers/cliente.controller');
 const router = express.Router();
 
 router.get('/', controller.listarClientes);
-router.get('/:id/cotizaciones', controller.listarCotizacionesCliente);
+router.get('/:id/ventas', controller.listarVentasCliente);
 router.get('/:id', controller.obtenerCliente);
 router.post('/', controller.crearCliente);
 router.put('/:id', controller.actualizarCliente);

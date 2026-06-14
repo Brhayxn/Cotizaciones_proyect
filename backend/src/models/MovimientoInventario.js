@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
-const DetalleCotizacion = sequelize.define('DetalleCotizacion', {
+const MovimientoInventario = sequelize.define('MovimientoInventario', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
@@ -14,37 +14,31 @@ const DetalleCotizacion = sequelize.define('DetalleCotizacion', {
       min: 1
     }
   },
-  nombre_producto: {
+  tipo_movimiento: {
     type: DataTypes.STRING,
     allowNull: false,
     validate: {
-      notEmpty: true
+      isIn: [['ajuste', 'venta', 'abastecimiento', 'anulacion']]
     }
   },
-  precio_unitario: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    validate: {
-      min: 1
-    }
-  },
-  subtotal: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    validate: {
-      min: 0
-    }
-  },
-  Cotizacion_id: {
-    type: DataTypes.INTEGER,
-    allowNull: false
+  fecha_hora: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
   },
   Producto_id: {
     type: DataTypes.INTEGER,
     allowNull: false
+  },
+  Venta_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
+  DetalleVenta_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true
   }
 }, {
-  tableName: 'detalle_cotizaciones'
+  tableName: 'movimientos_inventario'
 });
 
-module.exports = DetalleCotizacion;
+module.exports = MovimientoInventario;

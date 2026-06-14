@@ -144,19 +144,22 @@ export default function ClientsPage() {
                       )}
 
                       {!isLoadingHistory && quotes.length === 0 && (
-                        <p className="text-sm text-zinc-500">Este cliente aún no tiene cotizaciones guardadas.</p>
+                        <p className="text-sm text-zinc-500">Este cliente aún no tiene ventas o cotizaciones guardadas.</p>
                       )}
 
                       {quotes.map((quote) => (
                         <article key={quote.id} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
                           <div className="flex items-start justify-between gap-3">
                             <div>
-                              <p className="font-semibold">Cotización #{quote.id}</p>
+                              <p className="font-semibold">Venta #{quote.id}</p>
                               <p className="mt-1 text-xs text-zinc-500">
                                 {new Date(quote.fecha || quote.createdAt).toLocaleDateString('es-CL')}
                               </p>
                             </div>
-                            <strong className="text-sky-100">{formatCurrency(quote.totalCotizacion)}</strong>
+                            <div className="text-right">
+                              <strong className="text-sky-100">{formatCurrency(quote.totalVenta ?? quote.totalCotizacion)}</strong>
+                              <p className="mt-1 text-xs capitalize text-zinc-500">{quote.estado || 'cotizada'}</p>
+                            </div>
                           </div>
                           <p className="mt-2 text-xs text-zinc-400">
                             {(quote.detalles || []).length} producto{(quote.detalles || []).length === 1 ? '' : 's'}

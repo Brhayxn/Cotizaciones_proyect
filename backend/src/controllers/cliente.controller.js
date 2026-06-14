@@ -1,8 +1,8 @@
 const {
   Cliente,
   Producto,
-  Cotizacion,
-  DetalleCotizacion
+  Venta,
+  DetalleVenta
 } = require('../models');
 
 const sendError = (res, status, message) => res.status(status).json({ ok: false, message });
@@ -26,16 +26,16 @@ const obtenerCliente = async (req, res) => {
   }
 };
 
-const listarCotizacionesCliente = async (req, res) => {
+const listarVentasCliente = async (req, res) => {
   try {
     const cliente = await Cliente.findByPk(req.params.id);
     if (!cliente) return sendError(res, 404, 'Cliente no encontrado');
 
-    const cotizaciones = await Cotizacion.findAll({
+    const ventas = await Venta.findAll({
       where: { Cliente_id: cliente.id },
       include: [
         {
-          model: DetalleCotizacion,
+          model: DetalleVenta,
           as: 'detalles',
           include: [{ model: Producto, as: 'producto' }]
         }
@@ -43,9 +43,9 @@ const listarCotizacionesCliente = async (req, res) => {
       order: [['id', 'DESC']]
     });
 
-    return res.json({ ok: true, data: cotizaciones });
+    return res.json({ ok: true, data: ventas });
   } catch (error) {
-    return sendError(res, 500, 'Error al listar cotizaciones del cliente');
+    return sendError(res, 500, 'Error al listar ventas del cliente');
   }
 };
 
@@ -97,7 +97,7 @@ const eliminarCliente = async (req, res) => {
 module.exports = {
   listarClientes,
   obtenerCliente,
-  listarCotizacionesCliente,
+  listarVentasCliente,
   crearCliente,
   actualizarCliente,
   eliminarCliente

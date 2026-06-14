@@ -1,4 +1,4 @@
-const registerQuoteSocket = (io) => {
+const registerSaleSocket = (io) => {
   io.on('connection', (socket) => {
     socket.on('screen:join', (payload = {}) => {
       if (!payload.screenId) return;
@@ -6,18 +6,18 @@ const registerQuoteSocket = (io) => {
       socket.emit('screen:joined', { ok: true, screenId: payload.screenId });
     });
 
-    socket.on('quote:show', (payload = {}) => {
+    socket.on('sale:show', (payload = {}) => {
       if (!payload.screenId) return;
-      io.to(payload.screenId).emit('quote:update', {
+      io.to(payload.screenId).emit('sale:update', {
         cliente: payload.cliente || null,
         items: payload.items || [],
         total: payload.total || 0
       });
     });
 
-    socket.on('quote:clear', (payload = {}) => {
+    socket.on('sale:clear', (payload = {}) => {
       if (!payload.screenId) return;
-      io.to(payload.screenId).emit('quote:update', {
+      io.to(payload.screenId).emit('sale:update', {
         cliente: null,
         items: [],
         total: 0
@@ -26,4 +26,4 @@ const registerQuoteSocket = (io) => {
   });
 };
 
-module.exports = registerQuoteSocket;
+module.exports = registerSaleSocket;

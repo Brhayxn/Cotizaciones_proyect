@@ -21,6 +21,7 @@ const normalizeItem = (item) => {
     nombre: item.nombre ?? item.nombre_producto ?? 'Producto',
     precio,
     cantidad,
+    descuento: Number(item.descuento_aplicado ?? 0),
     subtotal: Number(item.subtotal ?? precio * cantidad)
   };
 };
@@ -82,13 +83,14 @@ export default function PrintableQuote() {
                 <th className="px-4 py-4">Producto</th>
                 <th className="px-4 py-4 text-center">Cant.</th>
                 <th className="px-4 py-4 text-right">Precio</th>
+                <th className="px-4 py-4 text-center">Desc.</th>
                 <th className="px-4 py-4 text-right">Subtotal</th>
               </tr>
             </thead>
             <tbody>
               {items.length === 0 && (
                 <tr>
-                  <td className="px-4 py-10 text-center text-zinc-500" colSpan="4">
+                  <td className="px-4 py-10 text-center text-zinc-500" colSpan="5">
                     No hay productos para imprimir.
                   </td>
                 </tr>
@@ -98,6 +100,7 @@ export default function PrintableQuote() {
                   <td className="px-4 py-5 font-bold">{item.nombre}</td>
                   <td className="px-4 py-5 text-center">{item.cantidad}</td>
                   <td className="px-4 py-5 text-right">{formatCurrency(item.precio)}</td>
+                  <td className="px-4 py-5 text-center">{item.descuento}%</td>
                   <td className="px-4 py-5 text-right font-black">{formatCurrency(item.subtotal)}</td>
                 </tr>
               ))}

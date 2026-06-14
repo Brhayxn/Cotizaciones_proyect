@@ -7,7 +7,7 @@ import CartPanel from '../components/CartPanel.jsx';
 import { productService } from '../services/productService.js';
 import { categoryService } from '../services/categoryService.js';
 import { clientService } from '../services/clientService.js';
-import { quoteService } from '../services/quoteService.js';
+import { saleService } from '../services/saleService.js';
 import { socket } from '../config/socket.js';
 
 const SCREEN_ID = 'pantalla-1';
@@ -65,25 +65,33 @@ export default function QuotePage() {
       .slice(0, 6);
   }, [clients, cliente.nombre, cliente.telefono]);
 
-  const total = useMemo(() => cart.reduce((sum, item) => sum + Number(item.precio) * Number(item.cantidad), 0), [cart]);
+  const calculateItemSubtotal = (item) => {
+    const precio = Number(item.precio) || 0;
+    const cantidad = Number(item.cantidad) || 0;
+    const descuento = Number(item.descuento_aplicado) || 0;
+    return Math.round(precio * cantidad * ((100 - descuento) / 100));
+  };
+
+  const total = useMemo(() => cart.reduce((sum, item) => sum + calculateItemSubtotal(item), 0), [cart]);
 
   useEffect(() => {
     if (!isScreenLive) return undefined;
 
     const timer = window.setTimeout(() => {
       if (cart.length === 0) {
-        socket.emit('quote:clear', { screenId: SCREEN_ID });
+        socket.emit('sale:clear', { screenId: SCREEN_ID });
         return;
       }
 
-      socket.emit('quote:show', {
+      socket.emit('sale:show', {
         screenId: SCREEN_ID,
         cliente,
         items: cart.map((item) => ({
           nombre_producto: item.nombre,
           precio_unitario: Number(item.precio),
           cantidad: Number(item.cantidad),
-          subtotal: Number(item.precio) * Number(item.cantidad)
+          descuento_aplicado: Number(item.descuento_aplicado) || 0,
+          subtotal: calculateItemSubtotal(item)
         })),
         total
       });
@@ -96,15 +104,35 @@ export default function QuotePage() {
     setCart((current) => {
       const exists = current.find((item) => item.id === product.id);
       if (exists) {
-        return current.map((item) => item.id === product.id ? { ...item, cantidad: item.cantidad + 1 } : item);
+        const updatedItem = {
+          ...exists,
+          cantidad: Math.min(Number(exists.stock) || 0, exists.cantidad + 1)
+        };
+        updatedItem.subtotal = calculateItemSubtotal(updatedItem);
+        return [...current.filter((item) => item.id !== product.id), updatedItem];
       }
-      return [...current, { ...product, cantidad: 1 }];
+      return [...current, { ...product, cantidad: 1, descuento_aplicado: 0, subtotal: Number(product.precio) || 0 }];
     });
   };
 
   const updateQuantity = (id, quantity) => {
-    const nextQuantity = Math.max(1, Number(quantity) || 1);
-    setCart((current) => current.map((item) => item.id === id ? { ...item, cantidad: nextQuantity } : item));
+    setCart((current) => current.map((item) => {
+      if (item.id !== id) return item;
+      const maxStock = Number(item.stock) || 1;
+      const nextQuantity = Math.min(maxStock, Math.max(1, Number(quantity) || 1));
+      const nextItem = { ...item, cantidad: nextQuantity };
+      return { ...nextItem, subtotal: calculateItemSubtotal(nextItem) };
+    }));
+  };
+
+  const updateDiscount = (id, discount) => {
+    setCart((current) => current.map((item) => {
+      if (item.id !== id) return item;
+      const maxDiscount = Number(item.descuento_maximo) || 0;
+      const nextDiscount = Math.min(maxDiscount, Math.max(0, Number(discount) || 0));
+      const nextItem = { ...item, descuento_aplicado: nextDiscount };
+      return { ...nextItem, subtotal: calculateItemSubtotal(nextItem) };
+    }));
   };
 
   const removeItem = (id) => setCart((current) => current.filter((item) => item.id !== id));
@@ -116,7 +144,8 @@ export default function QuotePage() {
       nombre_producto: item.nombre,
       precio_unitario: Number(item.precio),
       cantidad: Number(item.cantidad),
-      subtotal: Number(item.precio) * Number(item.cantidad)
+      descuento_aplicado: Number(item.descuento_aplicado) || 0,
+      subtotal: calculateItemSubtotal(item)
     })),
     total
   });
@@ -130,34 +159,50 @@ export default function QuotePage() {
       toast.error('Agrega al menos un producto');
       return false;
     }
+    const withoutStock = cart.find((item) => Number(item.cantidad) > Number(item.stock));
+    if (withoutStock) {
+      toast.error(`Stock insuficiente para ${withoutStock.nombre}`);
+      return false;
+    }
     return true;
   };
 
   const showOnScreen = () => {
     if (!ensureValidQuote()) return;
-    socket.emit('quote:show', quoteForScreen());
+    socket.emit('sale:show', quoteForScreen());
     setIsScreenLive(true);
     toast.success('Cotización en vivo en pantalla');
   };
 
-  const clearScreen = () => {
-    socket.emit('quote:clear', { screenId: SCREEN_ID });
-    setIsScreenLive(false);
-    toast.success('Pantalla cliente limpiada');
-  };
+  const buildSalePayload = (estado = 'cotizada') => ({
+    estado,
+    cliente,
+    items: cart.map((item) => ({
+      Producto_id: item.id,
+      cantidad: Number(item.cantidad),
+      descuento_aplicado: Number(item.descuento_aplicado) || 0
+    }))
+  });
 
   const saveQuote = async () => {
     if (!ensureValidQuote()) return;
     const toastId = toast.loading('Guardando cotización...');
     try {
-      await quoteService.create({
-        cliente,
-        items: cart.map((item) => ({
-          Producto_id: item.id,
-          cantidad: Number(item.cantidad)
-        }))
-      });
+      await saleService.create(buildSalePayload('cotizada'));
       toast.success('Cotización guardada', { id: toastId });
+    } catch (err) {
+      toast.error(err.message, { id: toastId });
+    }
+  };
+
+  const confirmSale = async () => {
+    if (!ensureValidQuote()) return;
+    const toastId = toast.loading('Confirmando venta...');
+    try {
+      await saleService.create(buildSalePayload('confirmada'));
+      toast.success('Venta confirmada y stock descontado', { id: toastId });
+      setCart([]);
+      await loadData();
     } catch (err) {
       toast.error(err.message, { id: toastId });
     }
@@ -172,7 +217,8 @@ export default function QuotePage() {
         nombre: item.nombre,
         precio: Number(item.precio),
         cantidad: Number(item.cantidad),
-        subtotal: Number(item.precio) * Number(item.cantidad)
+        descuento_aplicado: Number(item.descuento_aplicado) || 0,
+        subtotal: calculateItemSubtotal(item)
       })),
       total,
       fecha: new Date().toISOString()
@@ -208,7 +254,8 @@ export default function QuotePage() {
     setCart([]);
     setCliente({ nombre: '', telefono: '' });
     if (isScreenLive) {
-      socket.emit('quote:clear', { screenId: SCREEN_ID });
+      socket.emit('sale:clear', { screenId: SCREEN_ID });
+      setIsScreenLive(false);
     }
     toast.success('Carrito limpio');
   };
@@ -253,12 +300,13 @@ export default function QuotePage() {
         setCliente={setCliente}
         clientSuggestions={clientSuggestions}
         updateQuantity={updateQuantity}
+        updateDiscount={updateDiscount}
         removeItem={removeItem}
         onShow={showOnScreen}
         onSave={saveQuote}
+        onConfirm={confirmSale}
         onPrint={printQuote}
         onClear={clearCart}
-        onClearScreen={clearScreen}
         isScreenLive={isScreenLive}
       />
     </div>

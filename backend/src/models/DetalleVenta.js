@@ -1,27 +1,41 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
-const Producto = sequelize.define('Producto', {
+const DetalleVenta = sequelize.define('DetalleVenta', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true
   },
-  nombre: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    validate: {
-      notEmpty: true
-    }
-  },
-  precio: {
+  cantidad: {
     type: DataTypes.INTEGER,
     allowNull: false,
     validate: {
       min: 1
     }
   },
-  descuento_maximo: {
+  nombre_producto: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    validate: {
+      notEmpty: true
+    }
+  },
+  precio_unitario: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    validate: {
+      min: 1
+    }
+  },
+  subtotal: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    validate: {
+      min: 0
+    }
+  },
+  descuento_aplicado: {
     type: DataTypes.INTEGER,
     allowNull: false,
     defaultValue: 0,
@@ -30,24 +44,16 @@ const Producto = sequelize.define('Producto', {
       max: 100
     }
   },
-  stock: {
+  Venta_id: {
     type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 0,
-    validate: {
-      min: 0
-    }
+    allowNull: false
   },
-  activo: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true
-  },
-  Categoria_id: {
+  Producto_id: {
     type: DataTypes.INTEGER,
-    allowNull: true
+    allowNull: false
   }
 }, {
-  tableName: 'productos'
+  tableName: 'detalle_ventas'
 });
 
-module.exports = Producto;
+module.exports = DetalleVenta;

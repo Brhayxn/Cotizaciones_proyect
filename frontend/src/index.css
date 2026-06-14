@@ -28,6 +28,11 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(226,232,240,0.45) rgba(255,255,255,0.06);

@@ -4,7 +4,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const app = require('./src/app');
 const { sequelize } = require('./src/models');
-const registerQuoteSocket = require('./src/sockets/quote.socket');
+const registerSaleSocket = require('./src/sockets/sale.socket');
 
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
@@ -16,7 +16,7 @@ const io = new Server(server, {
   }
 });
 
-registerQuoteSocket(io);
+registerSaleSocket(io);
 
 const startServer = async () => {
   try {

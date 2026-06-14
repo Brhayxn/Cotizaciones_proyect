@@ -1,13 +1,14 @@
 {
-  "name": "catalogo-cotizaciones-backend",
+  "name": "catalogo-ventas-backend",
   "version": "1.0.0",
-  "description": "Backend simple para catalogo y cotizaciones con Express, SQLite, Sequelize y Socket.io.",
+  "description": "Backend para catalogo, ventas e inventario con Express, SQLite, Sequelize y Socket.io.",
   "main": "server.js",
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
     "build:frontend": "npm --prefix ../frontend run build",
     "start:static": "npm run build:frontend && node server.js",
+    "reset-db": "node scripts/reset-database.js",
     "seed": "node scripts/seed.js"
   },
   "dependencies": {

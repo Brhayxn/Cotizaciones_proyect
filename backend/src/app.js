@@ -7,7 +7,8 @@ const path = require('path');
 const clienteRoutes = require('./routes/cliente.routes');
 const categoriaRoutes = require('./routes/categoria.routes');
 const productoRoutes = require('./routes/producto.routes');
-const cotizacionRoutes = require('./routes/cotizacion.routes');
+const ventaRoutes = require('./routes/venta.routes');
+const inventarioRoutes = require('./routes/inventario.routes');
 
 const app = express();
 
@@ -21,7 +22,8 @@ app.get('/api/health', (req, res) => {
 app.use('/api/clientes', clienteRoutes);
 app.use('/api/categorias', categoriaRoutes);
 app.use('/api/productos', productoRoutes);
-app.use('/api/cotizaciones', cotizacionRoutes);
+app.use('/api/ventas', ventaRoutes);
+app.use('/api/inventario', inventarioRoutes);
 
 const frontendDistPath = path.resolve(__dirname, '../../frontend/dist');
 

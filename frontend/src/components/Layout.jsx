@@ -5,7 +5,8 @@ import logoFerreteria from '../assets/logo-ferreteria-castillo.png';
 const titles = {
   '/productos': 'Productos',
   '/clientes': 'Clientes',
-  '/cotizar': 'Nueva cotización'
+  '/inventario': 'Inventario',
+  '/venta': 'Nueva venta'
 };
 
 export default function Layout() {
@@ -19,7 +20,7 @@ export default function Layout() {
       <main className="app-shell relative mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 pb-6 pt-5 sm:px-6 lg:px-8">
         <header className="app-header mb-5 flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-white/[0.045] p-5 shadow-soft sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-4">
-            <div className="customer-header-logo flex h-20 w-44 shrink-0 items-center justify-center p-0 me-4">
+            <div className="customer-header-logo me-4 flex h-20 w-44 shrink-0 items-center justify-center p-0">
               <img className="max-h-full max-w-full object-contain" src={logoFerreteria} alt="Ferretería Castillo SPA" />
             </div>
             <div className="min-w-0">

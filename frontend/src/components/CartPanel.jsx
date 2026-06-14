@@ -10,12 +10,13 @@ export default function CartPanel({
   setCliente,
   clientSuggestions = [],
   updateQuantity,
+  updateDiscount,
   removeItem,
   onShow,
   onSave,
+  onConfirm,
   onPrint,
   onClear,
-  onClearScreen,
   isScreenLive
 }) {
   const [isClientSearchOpen, setIsClientSearchOpen] = useState(false);
@@ -122,7 +123,19 @@ export default function CartPanel({
                   <Plus size={15} />
                 </button>
               </div>
-              <p className="font-semibold text-sky-100">{formatCurrency(item.precio * item.cantidad)}</p>
+              <label className="flex items-center gap-1 rounded-full bg-black/25 px-2 py-1 text-xs text-zinc-400">
+                Desc.
+                <input
+                  className="w-10 bg-transparent text-center text-white outline-none"
+                  type="number"
+                  min="0"
+                  max={item.descuento_maximo || 0}
+                  value={item.descuento_aplicado || 0}
+                  onChange={(event) => updateDiscount(item.id, event.target.value)}
+                />
+                %
+              </label>
+              <p className="font-semibold text-sky-100">{formatCurrency(item.subtotal)}</p>
             </div>
           </div>
         ))}
@@ -138,13 +151,13 @@ export default function CartPanel({
             <Send size={18} /> Mostrar
           </button>
           <button className="soft-button" onClick={onSave}>
-            <Save size={18} /> Guardar
+            <Save size={18} /> Cotizar
+          </button>
+          <button className="soft-button" onClick={onConfirm}>
+            <Save size={18} /> Vender
           </button>
           <button className="ghost-button" onClick={onPrint}>
             <Printer size={18} /> PDF
-          </button>
-          <button className="ghost-button" onClick={onClearScreen}>
-            <XCircle size={18} /> Limpiar
           </button>
         </div>
       </div>

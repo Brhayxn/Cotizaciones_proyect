@@ -1,15 +1,16 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
-const Cotizacion = sequelize.define('Cotizacion', {
+const Venta = sequelize.define('Venta', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true
   },
-  totalCotizacion: {
+  totalVenta: {
     type: DataTypes.INTEGER,
     allowNull: false,
+    defaultValue: 0,
     validate: {
       min: 0
     }
@@ -18,12 +19,20 @@ const Cotizacion = sequelize.define('Cotizacion', {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW
   },
+  estado: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: 'cotizada',
+    validate: {
+      isIn: [['cotizada', 'confirmada', 'anulada']]
+    }
+  },
   Cliente_id: {
     type: DataTypes.INTEGER,
-    allowNull: false
+    allowNull: true
   }
 }, {
-  tableName: 'cotizaciones'
+  tableName: 'ventas'
 });
 
-module.exports = Cotizacion;
+module.exports = Venta;

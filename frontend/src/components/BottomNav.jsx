@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Package, ReceiptText, UsersRound } from 'lucide-react';
+import { Boxes, Package, ReceiptText, UsersRound } from 'lucide-react';
 
 const items = [
   { to: '/productos', label: 'Productos', icon: Package },
   { to: '/clientes', label: 'Clientes', icon: UsersRound },
-  { to: '/cotizar', label: 'Cotizar', icon: ReceiptText },
+  { to: '/inventario', label: 'Inventario', icon: Boxes },
+  { to: '/venta', label: 'Venta', icon: ReceiptText },
 ];
 
 export default function BottomNav() {

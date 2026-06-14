@@ -1,4 +1,4 @@
-const { Producto, Categoria } = require('../models');
+const { sequelize, Producto, Categoria, MovimientoInventario } = require('../models');
 
 const sendError = (res, status, message) => res.status(status).json({ ok: false, message });
 
@@ -9,10 +9,16 @@ const normalizarActivo = (valor) => {
   return null;
 };
 
-const validarProducto = ({ nombre, precio }) => {
+const validarProducto = ({ nombre, precio, descuento_maximo, stock }) => {
   if (!nombre || !String(nombre).trim()) return 'El nombre del producto es obligatorio';
   if (!Number.isInteger(Number(precio)) || Number(precio) <= 0) {
     return 'El precio del producto debe ser mayor a 0';
+  }
+  if (descuento_maximo !== undefined && (!Number.isInteger(Number(descuento_maximo)) || Number(descuento_maximo) < 0 || Number(descuento_maximo) > 100)) {
+    return 'El descuento maximo debe estar entre 0 y 100';
+  }
+  if (stock !== undefined && (!Number.isInteger(Number(stock)) || Number(stock) < 0)) {
+    return 'El stock debe ser mayor o igual a 0';
   }
   return null;
 };
@@ -54,28 +60,51 @@ const obtenerProducto = async (req, res) => {
 };
 
 const crearProducto = async (req, res) => {
+  const transaction = await sequelize.transaction();
+
   try {
-    const { nombre, precio, activo, Categoria_id } = req.body;
-    const errorValidacion = validarProducto({ nombre, precio });
-    if (errorValidacion) return sendError(res, 400, errorValidacion);
+    const { nombre, precio, descuento_maximo, stock, activo, Categoria_id } = req.body;
+    const errorValidacion = validarProducto({ nombre, precio, descuento_maximo, stock });
+    if (errorValidacion) {
+      await transaction.rollback();
+      return sendError(res, 400, errorValidacion);
+    }
 
     const estadoActivo = normalizarActivo(activo);
-    if (estadoActivo === null) return sendError(res, 400, 'El estado activo debe ser true o false');
+    if (estadoActivo === null) {
+      await transaction.rollback();
+      return sendError(res, 400, 'El estado activo debe ser true o false');
+    }
 
     if (Categoria_id) {
-      const categoria = await Categoria.findByPk(Categoria_id);
-      if (!categoria) return sendError(res, 400, 'La categoria indicada no existe');
+      const categoria = await Categoria.findByPk(Categoria_id, { transaction });
+      if (!categoria) {
+        await transaction.rollback();
+        return sendError(res, 400, 'La categoria indicada no existe');
+      }
     }
 
     const producto = await Producto.create({
       nombre: String(nombre).trim(),
       precio: Number(precio),
+      descuento_maximo: descuento_maximo !== undefined ? Number(descuento_maximo) : 0,
+      stock: stock !== undefined ? Number(stock) : 0,
       activo: estadoActivo !== undefined ? estadoActivo : true,
       Categoria_id: Categoria_id || null
-    });
+    }, { transaction });
 
+    if (producto.stock > 0) {
+      await MovimientoInventario.create({
+        cantidad: producto.stock,
+        tipo_movimiento: 'abastecimiento',
+        Producto_id: producto.id
+      }, { transaction });
+    }
+
+    await transaction.commit();
     return res.status(201).json({ ok: true, data: producto });
   } catch (error) {
+    await transaction.rollback();
     return sendError(res, 500, 'Error al crear producto');
   }
 };
@@ -87,7 +116,9 @@ const actualizarProducto = async (req, res) => {
 
     const nombre = req.body.nombre !== undefined ? req.body.nombre : producto.nombre;
     const precio = req.body.precio !== undefined ? req.body.precio : producto.precio;
-    const errorValidacion = validarProducto({ nombre, precio });
+    const descuento_maximo = req.body.descuento_maximo !== undefined ? req.body.descuento_maximo : producto.descuento_maximo;
+    const stock = req.body.stock !== undefined ? req.body.stock : producto.stock;
+    const errorValidacion = validarProducto({ nombre, precio, descuento_maximo, stock });
     if (errorValidacion) return sendError(res, 400, errorValidacion);
 
     if (req.body.Categoria_id) {
@@ -101,6 +132,8 @@ const actualizarProducto = async (req, res) => {
     await producto.update({
       nombre: String(nombre).trim(),
       precio: Number(precio),
+      descuento_maximo: Number(descuento_maximo),
+      stock: Number(stock),
       activo: activo !== undefined ? activo : producto.activo,
       Categoria_id: req.body.Categoria_id !== undefined ? req.body.Categoria_id : producto.Categoria_id
     });
