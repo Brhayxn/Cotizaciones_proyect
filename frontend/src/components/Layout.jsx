@@ -3,6 +3,7 @@ import BottomNav from './BottomNav.jsx';
 import logoFerreteria from '../assets/logo-ferreteria-castillo.png';
 
 const titles = {
+  '/dashboard': 'Dashboard',
   '/productos': 'Productos',
   '/clientes': 'Clientes',
   '/inventario': 'Inventario',

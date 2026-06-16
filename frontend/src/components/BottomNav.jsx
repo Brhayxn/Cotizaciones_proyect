@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Boxes, Package, ReceiptText, UsersRound } from 'lucide-react';
+import { Boxes, LayoutDashboard, Package, ReceiptText, UsersRound } from 'lucide-react';
 
 const items = [
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/productos', label: 'Productos', icon: Package },
   { to: '/clientes', label: 'Clientes', icon: UsersRound },
   { to: '/inventario', label: 'Inventario', icon: Boxes },

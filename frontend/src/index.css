@@ -237,14 +237,17 @@ button:disabled {
   }
 
   .side-nav {
-    width: 3.65rem;
+    left: 0.9rem;
+    width: 3.8rem;
     overflow: hidden;
-    transform: translate(-2.35rem, -50%);
+    transform: translateY(-50%);
+    backdrop-filter: blur(22px);
+    box-shadow: 18px 18px 48px rgba(0,0,0,0.48), inset 0 1px 0 rgba(255,255,255,0.08);
     transition: width 220ms ease, transform 220ms ease, background-color 220ms ease, border-color 220ms ease;
   }
 
   .side-nav-link {
-    width: 2.65rem;
+    width: 2.75rem;
     padding-left: 0.7rem;
     padding-right: 0.7rem;
     transform-origin: left center;
@@ -266,15 +269,15 @@ button:disabled {
 
   .side-nav:hover,
   .side-nav:focus-within {
-    width: 10rem;
-    transform: translate(0, -50%);
+    width: 10.4rem;
+    transform: translateY(-50%);
     border-color: rgba(255,255,255,0.16);
     background: rgba(0,0,0,0.88);
   }
 
   .side-nav:hover .side-nav-link,
   .side-nav:focus-within .side-nav-link {
-    width: 8.95rem;
+    width: 9.25rem;
     justify-content: flex-start;
   }
 
@@ -285,13 +288,13 @@ button:disabled {
   }
 
   .side-nav.is-collapsing {
-    width: 3.65rem;
-    transform: translate(-2.35rem, -50%);
+    width: 3.8rem;
+    transform: translateY(-50%);
     pointer-events: none;
   }
 
   .side-nav.is-collapsing .side-nav-link {
-    width: 2.65rem;
+    width: 2.75rem;
     justify-content: center;
     transform: none;
   }
@@ -304,11 +307,11 @@ button:disabled {
 
 @media (min-width: 1280px) {
   .side-nav {
-    width: 3.65rem;
+    width: 3.8rem;
   }
 
   .side-nav-link {
-    width: 2.65rem;
+    width: 2.75rem;
     justify-content: center;
   }
 }
@@ -766,7 +769,7 @@ button:disabled {
   }
 
   .side-nav {
-    left: 0.35rem;
+    left: 0.75rem;
     padding: 0.35rem;
     border-radius: 1.2rem;
   }
@@ -807,7 +810,7 @@ button:disabled {
   }
 
   .side-nav {
-    left: 0.35rem;
+    left: 0.75rem;
     padding: 0.35rem;
     border-radius: 1.2rem;
   }
@@ -1299,5 +1302,27 @@ button:disabled {
     max-width: none !important;
     min-height: 297mm;
     width: 210mm;
+    font-size: 10.5pt;
+  }
+
+  .print-area header {
+    padding: 8mm 10mm 6mm !important;
+  }
+
+  .print-area section {
+    padding-left: 10mm !important;
+    padding-right: 10mm !important;
+  }
+
+  .print-area table th {
+    padding: 2.4mm 2mm !important;
+  }
+
+  .print-area table td {
+    padding: 2.2mm 2mm !important;
+  }
+
+  .print-area footer {
+    padding: 5mm 10mm !important;
   }
 }

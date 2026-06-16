@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Search } from 'lucide-react';
+import { History, Search } from 'lucide-react';
 import GlassCard from '../components/GlassCard.jsx';
 import ProductCard from '../components/ProductCard.jsx';
 import CartPanel from '../components/CartPanel.jsx';
+import RecentSalesModal from '../components/RecentSalesModal.jsx';
 import { productService } from '../services/productService.js';
 import { categoryService } from '../services/categoryService.js';
 import { clientService } from '../services/clientService.js';
@@ -24,6 +25,7 @@ export default function QuotePage() {
   const [cliente, setCliente] = useState({ nombre: '', telefono: '' });
   const [loading, setLoading] = useState(true);
   const [isScreenLive, setIsScreenLive] = useState(false);
+  const [isRecentSalesOpen, setIsRecentSalesOpen] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -263,7 +265,7 @@ export default function QuotePage() {
   return (
     <div className="quote-layout grid gap-5 lg:grid-cols-[minmax(0,1fr)_350px] xl:grid-cols-[minmax(0,1fr)_390px]">
       <section className="quote-main space-y-5">
-        <GlassCard className="grid gap-3 md:grid-cols-[1fr_240px]">
+        <GlassCard className="grid gap-3 md:grid-cols-[1fr_220px_auto] md:items-end">
           <label className="field-label">
             Buscar productos
             <div className="relative">
@@ -280,6 +282,9 @@ export default function QuotePage() {
               ))}
             </select>
           </label>
+          <button className="ghost-button h-12 px-5" type="button" onClick={() => setIsRecentSalesOpen(true)}>
+            <History size={18} /> Ventas
+          </button>
         </GlassCard>
 
         {loading ? <GlassCard>Cargando productos activos...</GlassCard> : (
@@ -308,6 +313,12 @@ export default function QuotePage() {
         onPrint={printQuote}
         onClear={clearCart}
         isScreenLive={isScreenLive}
+      />
+
+      <RecentSalesModal
+        open={isRecentSalesOpen}
+        onClose={() => setIsRecentSalesOpen(false)}
+        onChanged={loadData}
       />
     </div>
   );

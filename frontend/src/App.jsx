@@ -7,6 +7,7 @@ import ClientsPage from './pages/ClientsPage.jsx';
 import QuotePage from './pages/QuotePage.jsx';
 import InventoryPage from './pages/InventoryPage.jsx';
 import CustomerScreenPage from './pages/CustomerScreenPage.jsx';
+import DashboardPage from './pages/DashboardPage.jsx';
 import PrintableQuote from './components/PrintableQuote.jsx';
 
 export default function App() {
@@ -40,7 +41,8 @@ export default function App() {
       />
       <Routes>
         <Route path="/" element={<Layout />}>
-          <Route index element={<Navigate to="/venta" replace />} />
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<DashboardPage />} />
           <Route path="productos" element={<ProductsPage />} />
           <Route path="clientes" element={<ClientsPage />} />
           <Route path="inventario" element={<InventoryPage />} />
@@ -49,7 +51,7 @@ export default function App() {
         <Route path="/pantalla-cliente" element={<CustomerScreenPage />} />
         <Route path="/pantalla/:screenId" element={<CustomerScreenPage />} />
         <Route path="/cotizacion/imprimir" element={<PrintableQuote />} />
-        <Route path="*" element={<Navigate to="/venta" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </>
   );

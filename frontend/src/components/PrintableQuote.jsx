@@ -15,14 +15,17 @@ const getQuote = () => {
 const normalizeItem = (item) => {
   const precio = Number(item.precio ?? item.precio_unitario ?? 0);
   const cantidad = Number(item.cantidad ?? 0);
+  const descuento = Number(item.descuento_aplicado ?? 0);
+  const precioFinal = Math.round(precio * ((100 - descuento) / 100));
 
   return {
     id: item.id ?? item.Producto_id ?? item.nombre ?? item.nombre_producto,
     nombre: item.nombre ?? item.nombre_producto ?? 'Producto',
     precio,
     cantidad,
-    descuento: Number(item.descuento_aplicado ?? 0),
-    subtotal: Number(item.subtotal ?? precio * cantidad)
+    descuento,
+    precioFinal,
+    subtotal: Number(item.subtotal ?? precioFinal * cantidad)
   };
 };
 
@@ -45,79 +48,81 @@ export default function PrintableQuote() {
         </button>
       </div>
 
-      <section className="print-area mx-auto flex min-h-[calc(100vh-3rem)] max-w-5xl flex-col overflow-hidden rounded-[1.5rem] bg-white shadow-2xl">
-        <header className="border-b-4 border-black bg-white px-8 py-7 text-black">
-          <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
-            <div className="flex items-center gap-5">
-              <div className="flex h-28 w-52 items-center justify-center rounded-2xl border border-zinc-300 bg-white p-2">
+      <section className="print-area mx-auto flex min-h-[calc(100vh-3rem)] max-w-5xl flex-col overflow-hidden rounded-[1rem] bg-white shadow-2xl">
+        <header className="border-b-[3px] border-black bg-white px-6 py-4 text-black">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-4">
+              <div className="flex h-20 w-40 items-center justify-center rounded-xl border border-zinc-300 bg-white p-1.5">
                 <img className="max-h-full max-w-full object-contain grayscale" src={logoFerreteria} alt="Ferretería Castillo SPA" />
               </div>
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.34em] text-zinc-500">Cotización comercial</p>
-                <h1 className="mt-3 text-4xl font-black tracking-tight">Ferretería Castillo SPA</h1>
+                <p className="text-[0.65rem] font-bold uppercase tracking-[0.34em] text-zinc-500">Cotización comercial</p>
+                <h1 className="mt-2 text-3xl font-black leading-tight tracking-tight">Ferretería Castillo SPA</h1>
               </div>
             </div>
-            <div className="rounded-2xl border border-zinc-300 bg-zinc-50 px-5 py-4 text-left sm:text-right">
-              <p className="text-sm text-zinc-500">Fecha</p>
-              <p className="text-xl font-bold">{quoteDate.toLocaleDateString('es-CL')}</p>
-              <p className="mt-2 text-sm text-zinc-500">Válida por 7 días</p>
+            <div className="rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-3 text-left sm:text-right">
+              <p className="text-xs text-zinc-500">Fecha</p>
+              <p className="text-lg font-bold leading-tight">{quoteDate.toLocaleDateString('es-CL')}</p>
+              <p className="mt-1 text-xs text-zinc-500">Válida por 7 días</p>
             </div>
           </div>
         </header>
 
-        <section className="grid gap-4 border-b border-zinc-300 bg-zinc-50 px-8 py-6 sm:grid-cols-2">
+        <section className="grid gap-3 border-b border-zinc-300 bg-zinc-50 px-6 py-4 sm:grid-cols-2">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-500">Cliente</p>
-            <p className="mt-2 text-2xl font-black">{quote.cliente?.nombre || 'Sin nombre'}</p>
+            <p className="text-[0.65rem] font-black uppercase tracking-[0.22em] text-zinc-500">Cliente</p>
+            <p className="mt-1 text-xl font-black">{quote.cliente?.nombre || 'Sin nombre'}</p>
           </div>
           <div className="sm:text-right">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-500">Teléfono</p>
-            <p className="mt-2 text-xl font-bold">{quote.cliente?.telefono || 'No informado'}</p>
+            <p className="text-[0.65rem] font-black uppercase tracking-[0.22em] text-zinc-500">Teléfono</p>
+            <p className="mt-1 text-lg font-bold">{quote.cliente?.telefono || 'No informado'}</p>
           </div>
         </section>
 
-        <section className="flex-1 px-8 py-7">
-          <table className="w-full border-collapse text-left">
+        <section className="flex-1 px-6 py-4">
+          <table className="w-full table-fixed border-collapse text-left text-sm">
             <thead>
-              <tr className="border-y-2 border-black bg-zinc-100 text-xs uppercase tracking-[0.16em] text-black">
-                <th className="px-4 py-4">Producto</th>
-                <th className="px-4 py-4 text-center">Cant.</th>
-                <th className="px-4 py-4 text-right">Precio</th>
-                <th className="px-4 py-4 text-center">Desc.</th>
-                <th className="px-4 py-4 text-right">Subtotal</th>
+              <tr className="border-y-2 border-black bg-zinc-100 text-[0.62rem] uppercase tracking-[0.14em] text-black">
+                <th className="w-[34%] px-3 py-3">Producto</th>
+                <th className="w-[8%] px-2 py-3 text-center">Cant.</th>
+                <th className="w-[15%] px-2 py-3 text-right">Precio</th>
+                <th className="w-[10%] px-2 py-3 text-center">Desc.</th>
+                <th className="w-[15%] px-2 py-3 text-right">P. final</th>
+                <th className="w-[18%] px-3 py-3 text-right">Subtotal</th>
               </tr>
             </thead>
             <tbody>
               {items.length === 0 && (
                 <tr>
-                  <td className="px-4 py-10 text-center text-zinc-500" colSpan="5">
+                  <td className="px-3 py-8 text-center text-zinc-500" colSpan="6">
                     No hay productos para imprimir.
                   </td>
                 </tr>
               )}
               {items.map((item, index) => (
-                <tr key={item.id || `${item.nombre}-${index}`} className="border-b border-zinc-200">
-                  <td className="px-4 py-5 font-bold">{item.nombre}</td>
-                  <td className="px-4 py-5 text-center">{item.cantidad}</td>
-                  <td className="px-4 py-5 text-right">{formatCurrency(item.precio)}</td>
-                  <td className="px-4 py-5 text-center">{item.descuento}%</td>
-                  <td className="px-4 py-5 text-right font-black">{formatCurrency(item.subtotal)}</td>
+                <tr key={item.id || `${item.nombre}-${index}`} className="break-inside-avoid border-b border-zinc-200">
+                  <td className="px-3 py-3 font-bold leading-snug">{item.nombre}</td>
+                  <td className="px-2 py-3 text-center">{item.cantidad}</td>
+                  <td className="px-2 py-3 text-right">{formatCurrency(item.precio)}</td>
+                  <td className="px-2 py-3 text-center">{item.descuento}%</td>
+                  <td className="px-2 py-3 text-right font-bold">{formatCurrency(item.precioFinal)}</td>
+                  <td className="px-3 py-3 text-right font-black">{formatCurrency(item.subtotal)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </section>
 
-        <footer className="grid gap-6 border-t border-zinc-300 bg-zinc-50 px-8 py-7 sm:grid-cols-[1fr_320px] sm:items-stretch">
-          <div className="rounded-2xl border border-zinc-300 bg-white p-5">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-500">Observación</p>
-            <p className="mt-3 text-sm leading-6 text-zinc-600">
+        <footer className="grid gap-5 border-t border-zinc-300 bg-zinc-50 px-6 py-4 sm:grid-cols-[1fr_270px] sm:items-stretch">
+          <div className="rounded-xl border border-zinc-300 bg-white p-4">
+            <p className="text-[0.65rem] font-black uppercase tracking-[0.22em] text-zinc-500">Observación</p>
+            <p className="mt-2 text-xs leading-5 text-zinc-600">
               Precios sujetos a disponibilidad y confirmación al momento de compra.
             </p>
           </div>
-          <div className="rounded-2xl border-2 border-black bg-white p-6 text-black">
-            <p className="text-sm font-bold uppercase tracking-[0.22em] text-zinc-500">Total</p>
-            <p className="mt-3 text-4xl font-black">{formatCurrency(total)}</p>
+          <div className="rounded-xl border-2 border-black bg-white p-5 text-black">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-zinc-500">Total</p>
+            <p className="mt-2 text-3xl font-black">{formatCurrency(total)}</p>
           </div>
         </footer>
       </section>
