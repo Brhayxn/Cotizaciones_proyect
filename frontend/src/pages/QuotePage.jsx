@@ -1,15 +1,24 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { History, Search } from 'lucide-react';
 import GlassCard from '../components/GlassCard.jsx';
 import ProductCard from '../components/ProductCard.jsx';
 import CartPanel from '../components/CartPanel.jsx';
 import RecentSalesModal from '../components/RecentSalesModal.jsx';
+import ListLimitHint from '../components/ListLimitHint.jsx';
 import { productService } from '../services/productService.js';
 import { categoryService } from '../services/categoryService.js';
 import { clientService } from '../services/clientService.js';
 import { saleService } from '../services/saleService.js';
 import { socket } from '../config/socket.js';
+import {
+  calculateItemSubtotal,
+  calculatePaymentTotals,
+  calculateQuoteTotal,
+  clampDiscount,
+  clampQuantity
+} from '../utils/quoteCalculations.js';
+import { useDebouncedValue } from '../hooks/useDebouncedValue.js';
 
 const SCREEN_ID = 'pantalla-1';
 const getArrayData = (response) => Array.isArray(response?.data) ? response.data : [];
@@ -26,55 +35,132 @@ export default function QuotePage() {
   const [loading, setLoading] = useState(true);
   const [isScreenLive, setIsScreenLive] = useState(false);
   const [isRecentSalesOpen, setIsRecentSalesOpen] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [productMeta, setProductMeta] = useState(null);
+  const productRequestId = useRef(0);
+  const clientRequestId = useRef(0);
+  const cartRef = useRef([]);
+  const debouncedSearch = useDebouncedValue(search);
+  const clientTerm = cliente.nombre.trim() || cliente.telefono.trim();
+  const debouncedClientTerm = useDebouncedValue(clientTerm);
 
-  const loadData = async () => {
+  const loadProducts = async () => {
+    const currentRequest = ++productRequestId.current;
     setLoading(true);
     try {
-      const [productResponse, categoryResponse, clientResponse] = await Promise.all([
-        productService.getAll({ activo: true }),
-        categoryService.getAll(),
-        clientService.getAll()
-      ]);
+      const productResponse = await productService.getAll({
+        activo: true,
+        ...(debouncedSearch.trim() ? { q: debouncedSearch.trim() } : {}),
+        ...(category ? { categoria: category } : {})
+      });
+      if (currentRequest !== productRequestId.current) return;
       setProducts(getArrayData(productResponse));
-      setCategories(getArrayData(categoryResponse));
-      setClients(getArrayData(clientResponse));
+      setProductMeta(productResponse.meta || null);
     } catch (err) {
-      toast.error(err.message);
+      if (currentRequest === productRequestId.current) toast.error(err.message);
     } finally {
-      setLoading(false);
+      if (currentRequest === productRequestId.current) setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadData();
+    categoryService.getAll()
+      .then((response) => setCategories(getArrayData(response)))
+      .catch((err) => toast.error(err.message));
   }, []);
 
-  const filteredProducts = useMemo(
-    () => products.filter((product) => {
-      const matchesSearch = String(product.nombre || '').toLowerCase().includes(search.toLowerCase());
-      const matchesCategory = category ? String(product.Categoria_id) === String(category) : true;
-      return matchesSearch && matchesCategory;
-    }),
-    [products, search, category]
+  useEffect(() => {
+    loadProducts();
+  }, [debouncedSearch, category]);
+
+  useEffect(() => {
+    cartRef.current = cart;
+  }, [cart]);
+
+  useEffect(() => {
+    const handleStockUpdate = (payload = {}) => {
+      const updates = Array.isArray(payload.products) ? payload.products : [];
+      if (updates.length === 0) return;
+
+      const updatesById = new Map(updates.map((product) => [Number(product.id), product]));
+      setProducts((current) => current.map((product) => {
+        const update = updatesById.get(Number(product.id));
+        return update ? { ...product, stock: Number(update.stock), activo: update.activo } : product;
+      }));
+
+      const unavailable = [];
+      const reduced = [];
+      const affected = [];
+      const nextCart = [];
+
+      for (const item of cartRef.current) {
+        const update = updatesById.get(Number(item.id));
+        if (!update) {
+          nextCart.push(item);
+          continue;
+        }
+
+        const nextStock = Math.max(0, Number(update.stock) || 0);
+        affected.push(update.nombre || item.nombre);
+        if (nextStock === 0 || update.activo === false) {
+          unavailable.push(update.nombre || item.nombre);
+          continue;
+        }
+
+        const nextQuantity = Math.min(Number(item.cantidad), nextStock);
+        if (nextQuantity < Number(item.cantidad)) reduced.push(update.nombre || item.nombre);
+        const nextItem = { ...item, stock: nextStock, cantidad: nextQuantity };
+        nextCart.push({ ...nextItem, subtotal: calculateItemSubtotal(nextItem) });
+      }
+
+      if (affected.length === 0) return;
+      cartRef.current = nextCart;
+      setCart(nextCart);
+
+      if (unavailable.length > 0) {
+        toast.error(`${unavailable.join(', ')} quedo sin stock y se retiro del carrito`);
+      } else if (reduced.length > 0) {
+        toast.error(`Stock actualizado: se ajusto la cantidad de ${reduced.join(', ')}`);
+      } else if (payload.reason === 'anulacion' || payload.reason === 'abastecimiento') {
+        toast.success(`Stock actualizado: ${affected.join(', ')}`);
+      } else {
+        toast(`Otro vendedor actualizo el stock de ${affected.join(', ')}`);
+      }
+    };
+
+    socket.on('inventory:stock', handleStockUpdate);
+    return () => socket.off('inventory:stock', handleStockUpdate);
+  }, []);
+
+  useEffect(() => {
+    const handleReconnect = () => loadProducts();
+    socket.on('connect', handleReconnect);
+    return () => socket.off('connect', handleReconnect);
+  }, [debouncedSearch, category]);
+
+  useEffect(() => {
+    const term = debouncedClientTerm.trim();
+    const currentRequest = ++clientRequestId.current;
+    if (term.length < 2) {
+      setClients([]);
+      return;
+    }
+
+    clientService.getAll({ q: term, limit: 6 })
+      .then((response) => {
+        if (currentRequest === clientRequestId.current) setClients(getArrayData(response));
+      })
+      .catch((err) => {
+        if (currentRequest === clientRequestId.current) toast.error(err.message);
+      });
+  }, [debouncedClientTerm]);
+
+  const unroundedTotal = useMemo(() => calculateQuoteTotal(cart), [cart]);
+  const paymentTotals = useMemo(
+    () => calculatePaymentTotals(unroundedTotal, paymentMethod),
+    [unroundedTotal, paymentMethod]
   );
-
-  const clientSuggestions = useMemo(() => {
-    const term = `${cliente.nombre} ${cliente.telefono}`.trim().toLowerCase();
-    if (term.length < 2) return [];
-
-    return clients
-      .filter((client) => `${client.nombre || ''} ${client.telefono || ''}`.toLowerCase().includes(term))
-      .slice(0, 6);
-  }, [clients, cliente.nombre, cliente.telefono]);
-
-  const calculateItemSubtotal = (item) => {
-    const precio = Number(item.precio) || 0;
-    const cantidad = Number(item.cantidad) || 0;
-    const descuento = Number(item.descuento_aplicado) || 0;
-    return Math.round(precio * cantidad * ((100 - descuento) / 100));
-  };
-
-  const total = useMemo(() => cart.reduce((sum, item) => sum + calculateItemSubtotal(item), 0), [cart]);
+  const total = paymentTotals.finalTotal;
 
   useEffect(() => {
     if (!isScreenLive) return undefined;
@@ -88,6 +174,9 @@ export default function QuotePage() {
       socket.emit('sale:show', {
         screenId: SCREEN_ID,
         cliente,
+        metodo_pago: paymentMethod || null,
+        total_sin_redondeo: paymentTotals.unroundedTotal,
+        ajuste_redondeo: paymentTotals.roundingAdjustment,
         items: cart.map((item) => ({
           nombre_producto: item.nombre,
           precio_unitario: Number(item.precio),
@@ -100,7 +189,7 @@ export default function QuotePage() {
     }, 180);
 
     return () => window.clearTimeout(timer);
-  }, [cart, cliente, total, isScreenLive]);
+  }, [cart, cliente, total, isScreenLive, paymentMethod, paymentTotals]);
 
   const addToCart = (product) => {
     setCart((current) => {
@@ -120,8 +209,7 @@ export default function QuotePage() {
   const updateQuantity = (id, quantity) => {
     setCart((current) => current.map((item) => {
       if (item.id !== id) return item;
-      const maxStock = Number(item.stock) || 1;
-      const nextQuantity = Math.min(maxStock, Math.max(1, Number(quantity) || 1));
+      const nextQuantity = clampQuantity(quantity, item.stock);
       const nextItem = { ...item, cantidad: nextQuantity };
       return { ...nextItem, subtotal: calculateItemSubtotal(nextItem) };
     }));
@@ -130,8 +218,7 @@ export default function QuotePage() {
   const updateDiscount = (id, discount) => {
     setCart((current) => current.map((item) => {
       if (item.id !== id) return item;
-      const maxDiscount = Number(item.descuento_maximo) || 0;
-      const nextDiscount = Math.min(maxDiscount, Math.max(0, Number(discount) || 0));
+      const nextDiscount = clampDiscount(discount, item.descuento_maximo);
       const nextItem = { ...item, descuento_aplicado: nextDiscount };
       return { ...nextItem, subtotal: calculateItemSubtotal(nextItem) };
     }));
@@ -142,6 +229,9 @@ export default function QuotePage() {
   const quoteForScreen = () => ({
     screenId: SCREEN_ID,
     cliente,
+    metodo_pago: paymentMethod || null,
+    total_sin_redondeo: paymentTotals.unroundedTotal,
+    ajuste_redondeo: paymentTotals.roundingAdjustment,
     items: cart.map((item) => ({
       nombre_producto: item.nombre,
       precio_unitario: Number(item.precio),
@@ -179,6 +269,8 @@ export default function QuotePage() {
   const buildSalePayload = (estado = 'cotizada') => ({
     estado,
     cliente,
+    socket_id: socket.id || null,
+    ...(estado === 'confirmada' ? { metodo_pago: paymentMethod } : {}),
     items: cart.map((item) => ({
       Producto_id: item.id,
       cantidad: Number(item.cantidad),
@@ -197,15 +289,60 @@ export default function QuotePage() {
     }
   };
 
+  const reconcileCartStock = async () => {
+    const currentCart = cartRef.current;
+    if (currentCart.length === 0) return;
+
+    const responses = await Promise.allSettled(
+      currentCart.map((item) => productService.getById(item.id))
+    );
+    const snapshots = responses
+      .filter((result) => result.status === 'fulfilled' && result.value?.data)
+      .map((result) => result.value.data);
+
+    if (snapshots.length === 0) {
+      await loadProducts();
+      return;
+    }
+
+    const snapshotsById = new Map(snapshots.map((product) => [Number(product.id), product]));
+    setProducts((current) => current.map((product) => {
+      const snapshot = snapshotsById.get(Number(product.id));
+      return snapshot ? { ...product, ...snapshot, stock: Number(snapshot.stock) } : product;
+    }));
+
+    const nextCart = currentCart.flatMap((item) => {
+      const snapshot = snapshotsById.get(Number(item.id));
+      if (!snapshot) return [item];
+      const nextStock = Math.max(0, Number(snapshot.stock) || 0);
+      if (nextStock === 0 || snapshot.activo === false) return [];
+      const nextItem = {
+        ...item,
+        stock: nextStock,
+        activo: snapshot.activo,
+        cantidad: Math.min(Number(item.cantidad), nextStock)
+      };
+      return [{ ...nextItem, subtotal: calculateItemSubtotal(nextItem) }];
+    });
+    cartRef.current = nextCart;
+    setCart(nextCart);
+  };
+
   const confirmSale = async () => {
     if (!ensureValidQuote()) return;
+    if (!paymentMethod) {
+      toast.error('Selecciona un método de pago');
+      return;
+    }
     const toastId = toast.loading('Confirmando venta...');
     try {
       await saleService.create(buildSalePayload('confirmada'));
       toast.success('Venta confirmada y stock descontado', { id: toastId });
       setCart([]);
-      await loadData();
+      setPaymentMethod('');
+      await loadProducts();
     } catch (err) {
+      if (/stock insuficiente/i.test(err.message)) await reconcileCartStock();
       toast.error(err.message, { id: toastId });
     }
   };
@@ -214,6 +351,7 @@ export default function QuotePage() {
     if (!ensureValidQuote()) return;
     localStorage.setItem('printableQuote', JSON.stringify({
       cliente,
+      metodo_pago: paymentMethod || null,
       items: cart.map((item) => ({
         id: item.id,
         nombre: item.nombre,
@@ -223,6 +361,8 @@ export default function QuotePage() {
         subtotal: calculateItemSubtotal(item)
       })),
       total,
+      total_sin_redondeo: paymentTotals.unroundedTotal,
+      ajuste_redondeo: paymentTotals.roundingAdjustment,
       fecha: new Date().toISOString()
     }));
 
@@ -255,6 +395,7 @@ export default function QuotePage() {
   const clearCart = () => {
     setCart([]);
     setCliente({ nombre: '', telefono: '' });
+    setPaymentMethod('');
     if (isScreenLive) {
       socket.emit('sale:clear', { screenId: SCREEN_ID });
       setIsScreenLive(false);
@@ -290,9 +431,12 @@ export default function QuotePage() {
         {loading ? <GlassCard>Cargando productos activos...</GlassCard> : (
           <div className="quote-products-scroll overflow-y-auto rounded-[1.35rem] pb-4 pr-2 sm:rounded-[2rem]">
             <div className="quote-products-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredProducts.map((product) => (
+              {products.map((product) => (
                 <ProductCard key={product.id} product={product} onAdd={addToCart} compact />
               ))}
+            </div>
+            <div className="mt-3">
+              <ListLimitHint meta={productMeta} />
             </div>
           </div>
         )}
@@ -301,9 +445,13 @@ export default function QuotePage() {
       <CartPanel
         cart={cart}
         total={total}
+        unroundedTotal={paymentTotals.unroundedTotal}
+        roundingAdjustment={paymentTotals.roundingAdjustment}
+        paymentMethod={paymentMethod}
+        setPaymentMethod={setPaymentMethod}
         cliente={cliente}
         setCliente={setCliente}
-        clientSuggestions={clientSuggestions}
+        clientSuggestions={clients}
         updateQuantity={updateQuantity}
         updateDiscount={updateDiscount}
         removeItem={removeItem}
@@ -318,7 +466,7 @@ export default function QuotePage() {
       <RecentSalesModal
         open={isRecentSalesOpen}
         onClose={() => setIsRecentSalesOpen(false)}
-        onChanged={loadData}
+        onChanged={loadProducts}
       />
     </div>
   );

@@ -1,4 +1,7 @@
 const { sequelize, Producto, Categoria, MovimientoInventario } = require('../models');
+const { Op } = require('sequelize');
+const { parseLimit, parseSearch, buildMeta, sendQueryError } = require('../utils/operationalQuery');
+const { buildFtsIdCondition } = require('../utils/searchIndex');
 
 const sendError = (res, status, message) => res.status(status).json({ ok: false, message });
 
@@ -26,23 +29,36 @@ const validarProducto = ({ nombre, precio, descuento_maximo, stock }) => {
 const listarProductos = async (req, res) => {
   try {
     const where = {};
+    const limit = parseLimit(req.query.limit);
+    const search = parseSearch(req.query.q);
+
+    if (search) {
+      const ftsCondition = await buildFtsIdCondition('productos', search);
+      Object.assign(where, ftsCondition || { nombre: { [Op.like]: `%${search}%` } });
+    }
 
     if (req.query.categoria) {
-      where.Categoria_id = req.query.categoria;
+      if (!/^\d+$/.test(String(req.query.categoria)) || Number(req.query.categoria) < 1) {
+        return sendError(res, 400, 'La categoria debe ser un identificador valido');
+      }
+      where.Categoria_id = Number(req.query.categoria);
     }
 
     const activo = normalizarActivo(req.query.activo);
     if (activo === null) return sendError(res, 400, 'El filtro activo debe ser true o false');
     if (activo !== undefined) where.activo = activo;
 
-    const productos = await Producto.findAll({
+    const { count, rows } = await Producto.findAndCountAll({
       where,
       include: [{ model: Categoria, as: 'categoria' }],
-      order: [['id', 'DESC']]
+      order: [['id', 'DESC']],
+      limit,
+      distinct: true
     });
 
-    return res.json({ ok: true, data: productos });
+    return res.json({ ok: true, data: rows, meta: buildMeta(count, limit, rows.length) });
   } catch (error) {
+    if (sendQueryError(res, error)) return undefined;
     return sendError(res, 500, 'Error al listar productos');
   }
 };

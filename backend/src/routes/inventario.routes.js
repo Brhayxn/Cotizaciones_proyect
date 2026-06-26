@@ -3,6 +3,7 @@ const controller = require('../controllers/inventario.controller');
 
 const router = express.Router();
 
+router.get('/resumen', controller.obtenerResumen);
 router.get('/movimientos', controller.listarMovimientos);
 router.post('/movimientos', controller.registrarMovimientoManual);
 

@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run --config ../tests/config/frontend.vitest.config.js",
+    "test:watch": "vitest --config ../tests/config/frontend.vitest.config.js"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",

@@ -1,0 +1,28 @@
+{
+  "name": "cotizaciones-project",
+  "private": true,
+  "scripts": {
+    "test": "npm run test:all",
+    "test:api": "npm --prefix backend test",
+    "test:frontend": "npm --prefix frontend test",
+    "test:stress": "node tests/load/stress.js",
+    "test:sqlite-concurrency": "node tests/load/sqlite-concurrency.js",
+    "test:catalog": "npm --prefix frontend run build && node tests/load/frontend-800-products.js",
+    "test:scale": "npm --prefix frontend run build && node --max-old-space-size=4096 tests/load/frontend-100k-quotes.js",
+    "test:accounting": "npm --prefix frontend run build && node --max-old-space-size=2048 tests/accounting/daily-close-5000.js",
+    "test:e2e": "npm --prefix frontend run build && playwright test --config tests/playwright.config.js",
+    "test:all": "npm run test:api && npm run test:frontend && npm run test:stress && npm run test:catalog && npm run test:e2e"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.53.1",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "jsdom": "^26.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "supertest": "^7.1.1",
+    "vitest": "^3.2.4"
+  }
+}

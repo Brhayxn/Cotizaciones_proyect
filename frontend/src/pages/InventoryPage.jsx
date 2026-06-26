@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Boxes, Filter, PackagePlus, Search } from 'lucide-react';
 import GlassCard from '../components/GlassCard.jsx';
+import ListLimitHint from '../components/ListLimitHint.jsx';
 import { inventoryService } from '../services/inventoryService.js';
 import { productService } from '../services/productService.js';
+import { useDebouncedValue } from '../hooks/useDebouncedValue.js';
 
 const getArrayData = (response) => Array.isArray(response?.data) ? response.data : [];
 
@@ -15,69 +17,77 @@ const movementLabels = {
 };
 
 export default function InventoryPage() {
-  const [products, setProducts] = useState([]);
   const [movements, setMovements] = useState([]);
   const [movementType, setMovementType] = useState('');
-  const [productFilter, setProductFilter] = useState('');
-  const [productFilterText, setProductFilterText] = useState('');
   const [productSearch, setProductSearch] = useState('');
   const [manualProductSearch, setManualProductSearch] = useState('');
+  const [manualSuggestions, setManualSuggestions] = useState([]);
   const [isManualSearchOpen, setIsManualSearchOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [movementMeta, setMovementMeta] = useState(null);
+  const [summary, setSummary] = useState({ productos: 0, stockTotal: 0, stockBajo: 0 });
   const [form, setForm] = useState({
     Producto_id: '',
     cantidad: '',
     tipo_movimiento: 'abastecimiento'
   });
+  const movementRequestId = useRef(0);
+  const suggestionRequestId = useRef(0);
+  const debouncedProductSearch = useDebouncedValue(productSearch);
+  const debouncedManualSearch = useDebouncedValue(manualProductSearch);
 
-  const loadInventory = async () => {
+  const loadMovements = async () => {
+    const currentRequest = ++movementRequestId.current;
     setLoading(true);
     try {
       const movementParams = {};
       if (movementType) movementParams.tipo = movementType;
-      if (productFilter) movementParams.producto = productFilter;
+      if (debouncedProductSearch.trim()) movementParams.q = debouncedProductSearch.trim();
 
-      const [productsResponse, movementsResponse] = await Promise.all([
-        productService.getAll(),
-        inventoryService.getMovements(movementParams)
-      ]);
-
-      setProducts(getArrayData(productsResponse));
+      const movementsResponse = await inventoryService.getMovements(movementParams);
+      if (currentRequest !== movementRequestId.current) return;
       setMovements(getArrayData(movementsResponse));
+      setMovementMeta(movementsResponse.meta || null);
     } catch (err) {
-      toast.error(err.message);
+      if (currentRequest === movementRequestId.current) toast.error(err.message);
     } finally {
-      setLoading(false);
+      if (currentRequest === movementRequestId.current) setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadInventory();
-  }, [movementType, productFilter]);
+    loadMovements();
+  }, [movementType, debouncedProductSearch]);
 
-  const visibleMovements = useMemo(
-    () => movements.filter((movement) => String(movement.producto?.nombre || '').toLowerCase().includes(productSearch.toLowerCase())),
-    [movements, productSearch]
-  );
+  const loadSummary = async () => {
+    try {
+      const response = await inventoryService.getSummary();
+      setSummary(response.data || { productos: 0, stockTotal: 0, stockBajo: 0 });
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
 
-  const manualSuggestions = useMemo(() => {
-    const term = manualProductSearch.trim().toLowerCase();
-    if (term.length < 2) return [];
-    return products
-      .filter((product) => String(product.nombre || '').toLowerCase().includes(term))
-      .slice(0, 7);
-  }, [products, manualProductSearch]);
+  useEffect(() => {
+    loadSummary();
+  }, []);
 
-  const filterSuggestions = useMemo(() => {
-    const term = productFilterText.trim().toLowerCase();
-    if (term.length < 2) return [];
-    return products
-      .filter((product) => String(product.nombre || '').toLowerCase().includes(term))
-      .slice(0, 7);
-  }, [products, productFilterText]);
+  useEffect(() => {
+    const term = debouncedManualSearch.trim();
+    const currentRequest = ++suggestionRequestId.current;
+    if (term.length < 2 || form.Producto_id) {
+      setManualSuggestions([]);
+      return;
+    }
 
-  const lowStockCount = products.filter((product) => Number(product.stock) <= 3).length;
-  const totalStock = products.reduce((sum, product) => sum + Number(product.stock || 0), 0);
+    productService.getAll({ q: term, activo: true, limit: 7 })
+      .then((response) => {
+        if (currentRequest === suggestionRequestId.current) setManualSuggestions(getArrayData(response));
+      })
+      .catch((err) => {
+        if (currentRequest === suggestionRequestId.current) toast.error(err.message);
+      });
+  }, [debouncedManualSearch, form.Producto_id]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -88,16 +98,6 @@ export default function InventoryPage() {
     setForm((current) => ({ ...current, Producto_id: product.id }));
     setManualProductSearch(product.nombre);
     setIsManualSearchOpen(false);
-  };
-
-  const selectFilterProduct = (product) => {
-    setProductFilter(String(product.id));
-    setProductFilterText(product.nombre);
-  };
-
-  const clearProductFilter = () => {
-    setProductFilter('');
-    setProductFilterText('');
   };
 
   const saveMovement = async (event) => {
@@ -123,7 +123,7 @@ export default function InventoryPage() {
       toast.success(form.tipo_movimiento === 'ajuste' ? 'Stock ajustado' : 'Stock abastecido', { id: toastId });
       setForm({ Producto_id: '', cantidad: '', tipo_movimiento: 'abastecimiento' });
       setManualProductSearch('');
-      await loadInventory();
+      await Promise.all([loadMovements(), loadSummary()]);
     } catch (err) {
       toast.error(err.message, { id: toastId });
     }
@@ -149,11 +149,6 @@ export default function InventoryPage() {
               ))}
             </select>
           </label>
-          {productFilter && (
-            <button className="ghost-button lg:col-span-3" type="button" onClick={clearProductFilter}>
-              Limpiar filtro de producto
-            </button>
-          )}
         </GlassCard>
 
         <GlassCard>
@@ -163,8 +158,8 @@ export default function InventoryPage() {
           </div>
           <div className="max-h-[calc(100vh-20rem)] min-h-[34rem] space-y-3 overflow-y-auto pr-2">
             {loading && <p className="text-sm text-zinc-400">Cargando movimientos...</p>}
-            {!loading && visibleMovements.length === 0 && <p className="text-sm text-zinc-500">No hay movimientos para los filtros seleccionados.</p>}
-            {visibleMovements.map((movement) => (
+            {!loading && movements.length === 0 && <p className="text-sm text-zinc-500">No hay movimientos para los filtros seleccionados.</p>}
+            {movements.map((movement) => (
               <article key={movement.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
@@ -182,6 +177,7 @@ export default function InventoryPage() {
                 </div>
               </article>
             ))}
+            {!loading && <ListLimitHint meta={movementMeta} />}
           </div>
         </GlassCard>
       </section>
@@ -190,15 +186,15 @@ export default function InventoryPage() {
         <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-1">
           <GlassCard className="p-4">
             <p className="text-xs uppercase tracking-[0.28em] text-zinc-500">Productos</p>
-            <p className="mt-2 font-display text-3xl font-semibold">{products.length}</p>
+            <p className="mt-2 font-display text-3xl font-semibold">{summary.productos}</p>
           </GlassCard>
           <GlassCard className="p-4">
             <p className="text-xs uppercase tracking-[0.28em] text-zinc-500">Stock total</p>
-            <p className="mt-2 font-display text-3xl font-semibold text-sky-100">{totalStock}</p>
+            <p className="mt-2 font-display text-3xl font-semibold text-sky-100">{summary.stockTotal}</p>
           </GlassCard>
           <GlassCard className="p-4">
             <p className="text-xs uppercase tracking-[0.28em] text-zinc-500">Stock bajo</p>
-            <p className={`mt-2 font-display text-3xl font-semibold ${lowStockCount > 0 ? 'text-red-200' : 'text-sky-100'}`}>{lowStockCount}</p>
+            <p className={`mt-2 font-display text-3xl font-semibold ${summary.stockBajo > 0 ? 'text-red-200' : 'text-sky-100'}`}>{summary.stockBajo}</p>
           </GlassCard>
         </div>
 

@@ -1,29 +1,75 @@
 const { sequelize, Producto, MovimientoInventario } = require('../models');
+const { Op, Transaction } = require('sequelize');
+const { parseLimit, parseSearch, buildMeta, sendQueryError } = require('../utils/operationalQuery');
+const { buildFtsIdCondition } = require('../utils/searchIndex');
+const { emitStockUpdates } = require('../utils/stockRealtime');
+const { acquireDatabaseWriteLock } = require('../utils/databaseWriteLock');
 
 const sendError = (res, status, message) => res.status(status).json({ ok: false, message });
+
+const obtenerResumen = async (_req, res) => {
+  try {
+    const [productos, stockTotal, stockBajo] = await Promise.all([
+      Producto.count(),
+      Producto.sum('stock'),
+      Producto.count({ where: { stock: { [Op.lte]: 3 } } })
+    ]);
+    return res.json({
+      ok: true,
+      data: { productos, stockTotal: Number(stockTotal || 0), stockBajo }
+    });
+  } catch (error) {
+    return sendError(res, 500, 'Error al obtener el resumen de inventario');
+  }
+};
 
 const listarMovimientos = async (req, res) => {
   try {
     const where = {};
-    if (req.query.producto) where.Producto_id = req.query.producto;
-    if (req.query.tipo) where.tipo_movimiento = req.query.tipo;
+    const limit = parseLimit(req.query.limit);
+    const search = parseSearch(req.query.q);
+    const productSearchWhere = search
+      ? (await buildFtsIdCondition('productos', search)) || { nombre: { [Op.like]: `%${search}%` } }
+      : undefined;
+    if (req.query.producto) {
+      if (!/^\d+$/.test(String(req.query.producto)) || Number(req.query.producto) < 1) {
+        return sendError(res, 400, 'El producto debe ser un identificador valido');
+      }
+      where.Producto_id = Number(req.query.producto);
+    }
+    if (req.query.tipo) {
+      if (!['ajuste', 'venta', 'abastecimiento', 'anulacion'].includes(req.query.tipo)) {
+        return sendError(res, 400, 'El tipo de movimiento no es valido');
+      }
+      where.tipo_movimiento = req.query.tipo;
+    }
 
-    const movimientos = await MovimientoInventario.findAll({
+    const { count, rows } = await MovimientoInventario.findAndCountAll({
       where,
-      include: [{ model: Producto, as: 'producto' }],
-      order: [['id', 'DESC']]
+      include: [{
+        model: Producto,
+        as: 'producto',
+        where: productSearchWhere,
+        required: Boolean(search)
+      }],
+      order: [['fecha_hora', 'DESC'], ['id', 'DESC']],
+      limit,
+      distinct: true
     });
 
-    return res.json({ ok: true, data: movimientos });
+    return res.json({ ok: true, data: rows, meta: buildMeta(count, limit, rows.length) });
   } catch (error) {
+    if (sendQueryError(res, error)) return undefined;
     return sendError(res, 500, 'Error al listar movimientos de inventario');
   }
 };
 
 const registrarMovimientoManual = async (req, res) => {
-  const transaction = await sequelize.transaction();
+  const releaseWriteLock = await acquireDatabaseWriteLock();
+  let transaction;
 
   try {
+    transaction = await sequelize.transaction({ type: Transaction.TYPES.IMMEDIATE });
     const { Producto_id, cantidad, tipo_movimiento } = req.body;
 
     if (!Producto_id) {
@@ -60,14 +106,18 @@ const registrarMovimientoManual = async (req, res) => {
     }, { transaction });
 
     await transaction.commit();
+    await emitStockUpdates(req, [producto.id], tipo_movimiento);
     return res.status(201).json({ ok: true, data: movimiento });
   } catch (error) {
-    await transaction.rollback();
+    if (transaction && !transaction.finished) await transaction.rollback();
     return sendError(res, 500, 'Error al registrar movimiento de inventario');
+  } finally {
+    releaseWriteLock();
   }
 };
 
 module.exports = {
+  obtenerResumen,
   listarMovimientos,
   registrarMovimientoManual
 };

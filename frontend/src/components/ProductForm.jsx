@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Save, X } from 'lucide-react';
+import { BadgePercent, Save, X } from 'lucide-react';
+import { formatCurrency } from '../utils/formatCurrency.js';
 
 const initialState = {
   nombre: '',
@@ -12,6 +13,10 @@ const initialState = {
 
 export default function ProductForm({ product, categories, onSubmit, onCancel }) {
   const [form, setForm] = useState(initialState);
+  const price = Math.max(0, Number(form.precio) || 0);
+  const maximumDiscount = Math.min(100, Math.max(0, Number(form.descuento_maximo) || 0));
+  const finalPrice = Math.round(price * ((100 - maximumDiscount) / 100));
+  const maximumSaving = price - finalPrice;
 
   useEffect(() => {
     if (product) {
@@ -64,6 +69,28 @@ export default function ProductForm({ product, categories, onSubmit, onCancel })
           <input className="field-input" name="descuento_maximo" type="number" min="0" max="100" value={form.descuento_maximo} onChange={handleChange} />
         </label>
       </div>
+
+      <div className="border-y border-white/10 py-3" aria-live="polite">
+        <div className="mb-3 flex items-center gap-2 text-sm font-bold text-zinc-300">
+          <BadgePercent size={17} className="text-sky-200" />
+          Precio con descuento máximo
+        </div>
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <p className="text-xs text-zinc-500">Precio base</p>
+            <p className="mt-1 font-semibold text-zinc-300">{formatCurrency(price)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-zinc-500">Ahorro</p>
+            <p className="mt-1 font-semibold text-zinc-300">{formatCurrency(maximumSaving)}</p>
+          </div>
+          <div className="col-span-2 flex items-end justify-between gap-3 border-t border-white/10 pt-3">
+            <p className="text-xs text-zinc-500">Precio final</p>
+            <p className="font-display text-xl font-semibold text-sky-100">{formatCurrency(finalPrice)}</p>
+          </div>
+        </div>
+      </div>
+
       <label className="field-label">
         Categoría
         <select className="field-input" name="Categoria_id" value={form.Categoria_id} onChange={handleChange}>

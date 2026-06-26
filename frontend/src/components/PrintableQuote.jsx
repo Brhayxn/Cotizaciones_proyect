@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { Printer } from 'lucide-react';
 import logoFerreteria from '../assets/logo-ferreteria-castillo.png';
 import { formatCurrency } from '../utils/formatCurrency.js';
+import { PAYMENT_METHOD_LABELS } from '../utils/quoteCalculations.js';
 
 const getQuote = () => {
   try {
@@ -16,7 +17,7 @@ const normalizeItem = (item) => {
   const precio = Number(item.precio ?? item.precio_unitario ?? 0);
   const cantidad = Number(item.cantidad ?? 0);
   const descuento = Number(item.descuento_aplicado ?? 0);
-  const precioFinal = Math.round(precio * ((100 - descuento) / 100));
+  const precioFinal = Math.floor((precio * (100 - descuento) + 50) / 100);
 
   return {
     id: item.id ?? item.Producto_id ?? item.nombre ?? item.nombre_producto,
@@ -119,6 +120,11 @@ export default function PrintableQuote() {
             <p className="mt-2 text-xs leading-5 text-zinc-600">
               Precios sujetos a disponibilidad y confirmación al momento de compra.
             </p>
+            {quote.metodo_pago && (
+              <p className="mt-2 text-xs font-bold text-zinc-800">
+                Método de pago: {PAYMENT_METHOD_LABELS[quote.metodo_pago] || quote.metodo_pago}
+              </p>
+            )}
           </div>
           <div className="rounded-xl border-2 border-black bg-white p-5 text-black">
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-zinc-500">Total</p>

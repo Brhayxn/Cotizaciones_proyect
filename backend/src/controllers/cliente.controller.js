@@ -4,14 +4,29 @@ const {
   Venta,
   DetalleVenta
 } = require('../models');
+const { Op } = require('sequelize');
+const { parseLimit, parseSearch, buildMeta, sendQueryError } = require('../utils/operationalQuery');
+const { buildFtsIdCondition } = require('../utils/searchIndex');
 
 const sendError = (res, status, message) => res.status(status).json({ ok: false, message });
 
 const listarClientes = async (req, res) => {
   try {
-    const clientes = await Cliente.findAll({ order: [['id', 'DESC']] });
-    return res.json({ ok: true, data: clientes });
+    const limit = parseLimit(req.query.limit);
+    const search = parseSearch(req.query.q);
+    const ftsCondition = search ? await buildFtsIdCondition('clientes', search) : null;
+    const where = search
+      ? ftsCondition || {
+        [Op.or]: [
+          { nombre: { [Op.like]: `%${search}%` } },
+          { telefono: { [Op.like]: `%${search}%` } }
+        ]
+      }
+      : {};
+    const { count, rows } = await Cliente.findAndCountAll({ where, order: [['id', 'DESC']], limit });
+    return res.json({ ok: true, data: rows, meta: buildMeta(count, limit, rows.length) });
   } catch (error) {
+    if (sendQueryError(res, error)) return undefined;
     return sendError(res, 500, 'Error al listar clientes');
   }
 };
@@ -31,7 +46,8 @@ const listarVentasCliente = async (req, res) => {
     const cliente = await Cliente.findByPk(req.params.id);
     if (!cliente) return sendError(res, 404, 'Cliente no encontrado');
 
-    const ventas = await Venta.findAll({
+    const limit = parseLimit(req.query.limit);
+    const query = {
       where: { Cliente_id: cliente.id },
       include: [
         {
@@ -40,11 +56,17 @@ const listarVentasCliente = async (req, res) => {
           include: [{ model: Producto, as: 'producto' }]
         }
       ],
-      order: [['id', 'DESC']]
-    });
+      order: [['id', 'DESC']],
+      limit
+    };
+    const [count, rows] = await Promise.all([
+      Venta.count({ where: { Cliente_id: cliente.id } }),
+      Venta.findAll(query)
+    ]);
 
-    return res.json({ ok: true, data: ventas });
+    return res.json({ ok: true, data: rows, meta: buildMeta(count, limit, rows.length) });
   } catch (error) {
+    if (sendQueryError(res, error)) return undefined;
     return sendError(res, 500, 'Error al listar ventas del cliente');
   }
 };

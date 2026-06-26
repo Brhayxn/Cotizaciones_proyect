@@ -1,7 +1,12 @@
 const { sequelize, Categoria, Producto, MovimientoInventario } = require('../src/models');
+const {
+  createDatabaseOptimizations,
+  optimizeDatabaseStatistics
+} = require('../src/database/optimizations');
 
 const resetDatabase = async () => {
   await sequelize.sync({ force: true });
+  await createDatabaseOptimizations({ resetSearch: true });
 };
 
 const seedBaseData = async () => {
@@ -65,6 +70,8 @@ const run = async () => {
     if (process.argv.includes('--seed')) {
       await seedBaseData();
     }
+
+    await optimizeDatabaseStatistics();
 
     console.log('Base de datos recreada correctamente');
     process.exit(0);

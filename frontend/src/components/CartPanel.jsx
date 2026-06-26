@@ -1,11 +1,21 @@
 import { useState } from 'react';
-import { Minus, Plus, Printer, Save, Send, Trash2, XCircle } from 'lucide-react';
+import { Banknote, CreditCard, Landmark, Minus, Plus, Printer, Save, Send, Trash2, XCircle } from 'lucide-react';
 import { formatCurrency } from '../utils/formatCurrency.js';
 import GlassCard from './GlassCard.jsx';
+
+const paymentMethods = [
+  { value: 'transferencia', label: 'Transferencia', icon: Landmark },
+  { value: 'debito_credito', label: 'Débito/crédito', icon: CreditCard },
+  { value: 'efectivo', label: 'Efectivo', icon: Banknote }
+];
 
 export default function CartPanel({
   cart,
   total,
+  unroundedTotal,
+  roundingAdjustment,
+  paymentMethod,
+  setPaymentMethod,
   cliente,
   setCliente,
   clientSuggestions = [],
@@ -142,8 +152,44 @@ export default function CartPanel({
       </div>
 
       <div className="cart-total mt-2 rounded-[1.45rem] border border-white/10 bg-white/[0.06] p-3">
+        <div className="mb-3">
+          <p className="mb-2 text-[0.68rem] font-bold uppercase tracking-[0.2em] text-zinc-500">Método de pago</p>
+          <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Método de pago">
+            {paymentMethods.map(({ value, label, icon: Icon }) => (
+              <button
+                key={value}
+                type="button"
+                title={label}
+                aria-pressed={paymentMethod === value}
+                onClick={() => setPaymentMethod(value)}
+                className={`flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl border px-1.5 text-[0.66rem] font-bold leading-tight transition-colors ${
+                  paymentMethod === value
+                    ? 'border-white/80 bg-white text-black'
+                    : 'border-white/10 bg-black/20 text-zinc-400 hover:border-white/20 hover:text-white'
+                }`}
+              >
+                <Icon size={16} />
+                <span className="max-w-full truncate">{label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {paymentMethod === 'efectivo' && (
+          <div className="mb-2 space-y-1 border-y border-white/10 py-2 text-xs">
+            <div className="flex items-center justify-between gap-3 text-zinc-400">
+              <span>Total previo</span>
+              <span>{formatCurrency(unroundedTotal)}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3 text-zinc-400">
+              <span>Redondeo efectivo</span>
+              <span>{roundingAdjustment > 0 ? '+' : ''}{formatCurrency(roundingAdjustment)}</span>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-end justify-between">
-          <span className="text-zinc-400">Total</span>
+          <span className="text-zinc-400">Total final</span>
           <strong className="cart-total-value font-display text-[1.9rem] text-white">{formatCurrency(total)}</strong>
         </div>
         <div className="cart-actions mt-3 grid grid-cols-2 gap-2">

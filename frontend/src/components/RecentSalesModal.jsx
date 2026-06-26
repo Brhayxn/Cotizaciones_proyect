@@ -3,6 +3,8 @@ import toast from 'react-hot-toast';
 import { Ban, Clock3, Loader2, ReceiptText, X } from 'lucide-react';
 import { saleService } from '../services/saleService.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
+import { PAYMENT_METHOD_LABELS } from '../utils/quoteCalculations.js';
+import { socket } from '../config/socket.js';
 
 const getArrayData = (response) => Array.isArray(response?.data) ? response.data : [];
 
@@ -25,12 +27,12 @@ export default function RecentSalesModal({ open, onClose, onChanged }) {
   const [loading, setLoading] = useState(false);
   const [cancellingId, setCancellingId] = useState(null);
 
-  const recentSales = useMemo(() => sales.slice(0, 12), [sales]);
+  const recentSales = useMemo(() => sales.slice(0, 40), [sales]);
 
   const loadSales = async () => {
     setLoading(true);
     try {
-      const response = await saleService.getAll();
+      const response = await saleService.getToday({ limit: 40 });
       setSales(getArrayData(response));
     } catch (err) {
       toast.error(err.message || 'No se pudieron cargar las ventas');
@@ -61,7 +63,7 @@ export default function RecentSalesModal({ open, onClose, onChanged }) {
     const toastId = toast.loading('Anulando venta...');
     setCancellingId(sale.id);
     try {
-      await saleService.cancel(sale.id);
+      await saleService.cancel(sale.id, socket.id || null);
       toast.success('Venta anulada correctamente', { id: toastId });
       await loadSales();
       await onChanged?.();
@@ -120,6 +122,11 @@ export default function RecentSalesModal({ open, onClose, onChanged }) {
                           <span className={`rounded-full border px-3 py-1 text-xs font-bold ${stateStyles[status] || stateStyles.cotizada}`}>
                             {stateLabels[status] || status}
                           </span>
+                          {sale.metodo_pago && (
+                            <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs font-semibold text-zinc-300">
+                              {PAYMENT_METHOD_LABELS[sale.metodo_pago] || sale.metodo_pago}
+                            </span>
+                          )}
                           <span className="inline-flex items-center gap-1 text-xs text-zinc-500">
                             <Clock3 size={13} />
                             {new Date(sale.fecha || sale.createdAt || Date.now()).toLocaleString('es-CL')}

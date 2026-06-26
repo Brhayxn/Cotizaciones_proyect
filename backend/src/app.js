@@ -1,8 +1,7 @@
-require('dotenv').config();
-
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const env = require('./config/env');
 
 const clienteRoutes = require('./routes/cliente.routes');
 const categoriaRoutes = require('./routes/categoria.routes');
@@ -12,7 +11,7 @@ const inventarioRoutes = require('./routes/inventario.routes');
 
 const app = express();
 
-app.use(cors());
+app.use(cors({ origin: env.corsOrigin }));
 app.use(express.json());
 
 app.get('/api/health', (req, res) => {
@@ -25,7 +24,7 @@ app.use('/api/productos', productoRoutes);
 app.use('/api/ventas', ventaRoutes);
 app.use('/api/inventario', inventarioRoutes);
 
-const frontendDistPath = path.resolve(__dirname, '../../frontend/dist');
+const frontendDistPath = env.frontendDistPath;
 
 app.use(express.static(frontendDistPath));
 

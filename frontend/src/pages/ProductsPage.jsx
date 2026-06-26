@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { FolderPlus, Plus, Search, Tags } from 'lucide-react';
 import GlassCard from '../components/GlassCard.jsx';
 import ProductCard from '../components/ProductCard.jsx';
 import ProductForm from '../components/ProductForm.jsx';
+import ListLimitHint from '../components/ListLimitHint.jsx';
 import { productService } from '../services/productService.js';
 import { categoryService } from '../services/categoryService.js';
+import { useDebouncedValue } from '../hooks/useDebouncedValue.js';
 
 const getArrayData = (response) => Array.isArray(response?.data) ? response.data : [];
 
@@ -19,31 +21,41 @@ export default function ProductsPage() {
   const [categoryName, setCategoryName] = useState('');
   const [editingCategory, setEditingCategory] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [meta, setMeta] = useState(null);
+  const requestId = useRef(0);
+  const debouncedSearch = useDebouncedValue(search);
 
-  const loadData = async () => {
+  const loadCategories = async () => {
+    const response = await categoryService.getAll();
+    setCategories(getArrayData(response));
+  };
+
+  const loadProducts = async () => {
+    const currentRequest = ++requestId.current;
     setLoading(true);
     try {
-      const [productResponse, categoryResponse] = await Promise.all([
-        productService.getAll(selectedCategory ? { categoria: selectedCategory } : {}),
-        categoryService.getAll()
-      ]);
+      const productResponse = await productService.getAll({
+        ...(debouncedSearch.trim() ? { q: debouncedSearch.trim() } : {}),
+        ...(selectedCategory ? { categoria: selectedCategory } : {})
+      });
+      if (currentRequest !== requestId.current) return;
       setProducts(getArrayData(productResponse));
-      setCategories(getArrayData(categoryResponse));
+      setMeta(productResponse.meta || null);
     } catch (err) {
-      toast.error(err.message);
+      if (currentRequest === requestId.current) toast.error(err.message);
     } finally {
-      setLoading(false);
+      if (currentRequest === requestId.current) setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadData();
-  }, [selectedCategory]);
+    loadCategories()
+      .catch((err) => toast.error(err.message));
+  }, []);
 
-  const filteredProducts = useMemo(
-    () => products.filter((product) => String(product.nombre || '').toLowerCase().includes(search.toLowerCase())),
-    [products, search]
-  );
+  useEffect(() => {
+    loadProducts();
+  }, [debouncedSearch, selectedCategory]);
 
   const saveProduct = async (payload) => {
     try {
@@ -56,7 +68,7 @@ export default function ProductsPage() {
       }
       setEditing(null);
       setShowForm(false);
-      await loadData();
+      await loadProducts();
     } catch (err) {
       toast.error(err.message);
     }
@@ -66,7 +78,7 @@ export default function ProductsPage() {
     try {
       await productService.setStatus(product.id, !product.activo);
       toast.success(product.activo ? 'Producto desactivado' : 'Producto activado');
-      await loadData();
+      await loadProducts();
     } catch (err) {
       toast.error(err.message);
     }
@@ -85,7 +97,7 @@ export default function ProductsPage() {
       }
       setCategoryName('');
       setEditingCategory(null);
-      await loadData();
+      await Promise.all([loadProducts(), loadCategories()]);
     } catch (err) {
       toast.error(err.message);
     }
@@ -95,7 +107,7 @@ export default function ProductsPage() {
     try {
       await categoryService.remove(category.id);
       toast.success('Categoría eliminada');
-      await loadData();
+      await Promise.all([loadProducts(), loadCategories()]);
     } catch (err) {
       toast.error(err.message);
     }
@@ -128,7 +140,7 @@ export default function ProductsPage() {
 
         {loading ? <GlassCard>Cargando productos...</GlassCard> : (
           <div className="products-grid content-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredProducts.map((product) => (
+            {products.map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}
@@ -138,6 +150,7 @@ export default function ProductsPage() {
             ))}
           </div>
         )}
+        {!loading && <ListLimitHint meta={meta} />}
       </section>
 
       <aside className="management-aside space-y-5">

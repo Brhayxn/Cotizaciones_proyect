@@ -8,8 +8,12 @@
     "start": "node server.js",
     "build:frontend": "npm --prefix ../frontend run build",
     "start:static": "npm run build:frontend && node server.js",
+    "backup-db": "node scripts/backup-database.js",
+    "checkpoint-db": "node scripts/checkpoint-database.js",
     "reset-db": "node scripts/reset-database.js",
-    "seed": "node scripts/seed.js"
+    "seed": "node scripts/seed.js",
+    "test": "vitest run --config ../tests/config/backend.vitest.config.js",
+    "test:watch": "vitest --config ../tests/config/backend.vitest.config.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

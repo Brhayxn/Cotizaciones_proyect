@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { ChevronDown, ChevronUp, Edit3, History, Phone, Search, Trash2, UserPlus } from 'lucide-react';
 import GlassCard from '../components/GlassCard.jsx';
 import ClientForm from '../components/ClientForm.jsx';
+import ListLimitHint from '../components/ListLimitHint.jsx';
 import { clientService } from '../services/clientService.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
+import { useDebouncedValue } from '../hooks/useDebouncedValue.js';
 
 const getArrayData = (response) => Array.isArray(response?.data) ? response.data : [];
 
@@ -17,27 +19,28 @@ export default function ClientsPage() {
   const [openHistoryId, setOpenHistoryId] = useState(null);
   const [quotesByClient, setQuotesByClient] = useState({});
   const [historyLoadingId, setHistoryLoadingId] = useState(null);
+  const [meta, setMeta] = useState(null);
+  const requestId = useRef(0);
+  const debouncedSearch = useDebouncedValue(search);
 
   const loadClients = async () => {
+    const currentRequest = ++requestId.current;
     setLoading(true);
     try {
-      const response = await clientService.getAll();
+      const response = await clientService.getAll(debouncedSearch.trim() ? { q: debouncedSearch.trim() } : {});
+      if (currentRequest !== requestId.current) return;
       setClients(getArrayData(response));
+      setMeta(response.meta || null);
     } catch (err) {
-      toast.error(err.message);
+      if (currentRequest === requestId.current) toast.error(err.message);
     } finally {
-      setLoading(false);
+      if (currentRequest === requestId.current) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadClients();
-  }, []);
-
-  const filteredClients = useMemo(
-    () => clients.filter((client) => `${client.nombre || ''} ${client.telefono || ''}`.toLowerCase().includes(search.toLowerCase())),
-    [clients, search]
-  );
+  }, [debouncedSearch]);
 
   const saveClient = async (payload) => {
     try {
@@ -109,7 +112,7 @@ export default function ClientsPage() {
 
       {loading ? <GlassCard>Cargando clientes...</GlassCard> : (
         <div className="clients-grid content-grid grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredClients.map((client) => {
+          {clients.map((client) => {
             const quotes = quotesByClient[client.id] || [];
             const isHistoryOpen = openHistoryId === client.id;
             const isLoadingHistory = historyLoadingId === client.id;
@@ -174,6 +177,7 @@ export default function ClientsPage() {
           })}
         </div>
       )}
+      {!loading && <ListLimitHint meta={meta} />}
     </div>
   );
 }
