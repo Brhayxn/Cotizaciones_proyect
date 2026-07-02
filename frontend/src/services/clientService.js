@@ -1,6 +1,7 @@
 import { api } from '../config/api.js';
 
 export const clientService = {
+  // Centraliza clientes y su historial para formularios y autocompletado.
   getAll: (params = {}) => api.get('/api/clientes', { params }),
   getById: (id) => api.get(`/api/clientes/${id}`),
   getQuotes: (id, params = {}) => api.get(`/api/clientes/${id}/ventas`, { params }),

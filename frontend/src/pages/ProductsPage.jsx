@@ -12,6 +12,7 @@ import { useDebouncedValue } from '../hooks/useDebouncedValue.js';
 const getArrayData = (response) => Array.isArray(response?.data) ? response.data : [];
 
 export default function ProductsPage() {
+  // Maneja catálogo, filtros, formulario de producto y edición de categorías.
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -26,11 +27,13 @@ export default function ProductsPage() {
   const debouncedSearch = useDebouncedValue(search);
 
   const loadCategories = async () => {
+    // Se carga aparte porque el select y el formulario de producto la reutilizan.
     const response = await categoryService.getAll();
     setCategories(getArrayData(response));
   };
 
   const loadProducts = async () => {
+    // Protege contra respuestas desordenadas cuando el usuario busca rápido.
     const currentRequest = ++requestId.current;
     setLoading(true);
     try {
@@ -58,6 +61,7 @@ export default function ProductsPage() {
   }, [debouncedSearch, selectedCategory]);
 
   const saveProduct = async (payload) => {
+    // Un mismo formulario sirve para crear y editar según exista `editing`.
     try {
       if (editing) {
         await productService.update(editing.id, payload);
@@ -75,6 +79,7 @@ export default function ProductsPage() {
   };
 
   const toggleProduct = async (product) => {
+    // Desactivar conserva el historial, pero lo oculta de ventas activas.
     try {
       await productService.setStatus(product.id, !product.activo);
       toast.success(product.activo ? 'Producto desactivado' : 'Producto activado');
@@ -85,6 +90,7 @@ export default function ProductsPage() {
   };
 
   const saveCategory = async (event) => {
+    // Después de guardar categoría se refrescan productos por si cambia un filtro visible.
     event.preventDefault();
     if (!categoryName.trim()) return;
     try {
@@ -104,6 +110,7 @@ export default function ProductsPage() {
   };
 
   const removeCategory = async (category) => {
+    // Si la categoría tiene dependencias, el backend responderá el error correspondiente.
     try {
       await categoryService.remove(category.id);
       toast.success('Categoría eliminada');

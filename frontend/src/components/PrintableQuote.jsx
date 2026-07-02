@@ -5,6 +5,7 @@ import { formatCurrency } from '../utils/formatCurrency.js';
 import { PAYMENT_METHOD_LABELS } from '../utils/quoteCalculations.js';
 
 const getQuote = () => {
+  // La página de impresión lee la cotización preparada por QuotePage.
   try {
     const storedQuote = localStorage.getItem('printableQuote') || sessionStorage.getItem('printableQuote');
     return JSON.parse(storedQuote || '{}');
@@ -14,6 +15,7 @@ const getQuote = () => {
 };
 
 const normalizeItem = (item) => {
+  // Acepta datos del carrito y de ventas guardadas para imprimir ambos formatos.
   const precio = Number(item.precio ?? item.precio_unitario ?? 0);
   const cantidad = Number(item.cantidad ?? 0);
   const descuento = Number(item.descuento_aplicado ?? 0);
@@ -31,12 +33,14 @@ const normalizeItem = (item) => {
 };
 
 export default function PrintableQuote() {
+  // useMemo evita recalcular/leer storage al disparar window.print().
   const quote = useMemo(getQuote, []);
   const items = useMemo(() => (quote.items || []).map(normalizeItem), [quote.items]);
   const total = Number(quote.total || items.reduce((sum, item) => sum + item.subtotal, 0));
   const quoteDate = quote.fecha ? new Date(quote.fecha) : new Date();
 
   useEffect(() => {
+    // Da tiempo a renderizar logo y tabla antes de abrir el diálogo de impresión.
     const timer = window.setTimeout(() => window.print(), 450);
     return () => window.clearTimeout(timer);
   }, []);

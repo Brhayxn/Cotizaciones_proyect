@@ -1,6 +1,7 @@
 import { api } from '../config/api.js';
 
 export const saleService = {
+  // Capa delgada: las pantallas no necesitan conocer rutas exactas de ventas.
   getAll: (params = {}) => api.get('/api/ventas', { params }),
   getToday: (params = {}) => api.get('/api/ventas/hoy', { params }),
   getLastWeek: () => api.get('/api/ventas/ultima-semana'),

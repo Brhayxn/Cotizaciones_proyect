@@ -14,6 +14,7 @@ import { saleService } from '../services/saleService.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
 
 const CHILE_TIME_ZONE = 'America/Santiago';
+// Los formateadores fijan zona horaria para que reportes no dependan del navegador.
 const dayFormatter = new Intl.DateTimeFormat('es-CL', {
   timeZone: CHILE_TIME_ZONE,
   weekday: 'short'
@@ -38,11 +39,13 @@ const hourFormatter = new Intl.DateTimeFormat('en-US', {
 });
 
 const normalizeDate = (value) => {
+  // Evita que una fecha inválida rompa cálculos del dashboard.
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? new Date() : date;
 };
 
 const toPercent = (value, max) => {
+  // Mantiene barras visibles incluso con valores pequeños.
   if (!max) return 0;
   return Math.max(5, Math.round((value / max) * 100));
 };
@@ -75,6 +78,7 @@ const PERIODS = {
 };
 
 const buildInsights = (sales = [], period = 'week') => {
+  // Separa ventas confirmadas/cotizadas para no mezclar ingresos reales con cotizaciones.
   const activeSales = sales.filter((sale) => getSaleState(sale) !== 'anulada');
   const confirmedSales = sales.filter((sale) => getSaleState(sale) === 'confirmada');
   const quotedSales = sales.filter((sale) => getSaleState(sale) === 'cotizada');
@@ -92,6 +96,7 @@ const buildInsights = (sales = [], period = 'week') => {
 
   const periodDays = PERIODS[period]?.days || 7;
 
+  // Precrea días vacíos para que el gráfico no salte cuando un día no tuvo ventas.
   for (let index = periodDays - 1; index >= 0; index -= 1) {
     const day = new Date(now);
     day.setDate(now.getDate() - index);
@@ -107,6 +112,7 @@ const buildInsights = (sales = [], period = 'week') => {
   }
 
   for (const sale of confirmedSales) {
+    // Acumula datos por hora, día, método de pago y producto en una sola pasada.
     const saleDate = normalizeDate(sale.fecha || sale.createdAt);
     const hour = getChileHour(saleDate);
     const hourBucket = hourMap.get(hour) || { hour, count: 0, total: 0 };
@@ -177,6 +183,7 @@ const buildInsights = (sales = [], period = 'week') => {
 };
 
 function MetricCard({ icon: Icon, label, value, detail, tone = 'lime' }) {
+  // Tarjeta reutilizable para KPIs principales.
   const toneClass = tone === 'sky' ? 'from-sky-200 to-cyan-300' : tone === 'amber' ? 'from-amber-200 to-lime-200' : 'from-lime-200 to-lime-400';
 
   return (
@@ -196,6 +203,7 @@ function MetricCard({ icon: Icon, label, value, detail, tone = 'lime' }) {
 }
 
 function PaymentCard({ payment }) {
+  // Muestra participación de cada método de pago sobre ventas confirmadas.
   const Icon = payment.icon;
   const tones = {
     lime: {

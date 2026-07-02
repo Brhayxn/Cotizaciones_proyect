@@ -26,6 +26,8 @@ Desde la raíz del proyecto:
 npm run test:api
 npm run test:frontend
 npm run test:stress
+npm run test:fastapi-concurrency
+npm run test:fastapi-concurrency:mixed
 npm run test:catalog
 npm run test:scale
 npm run test:accounting
@@ -36,6 +38,8 @@ npm run test:all
 - `test:api`: Vitest y Supertest contra una base temporal del sistema operativo.
 - `test:frontend`: Vitest, jsdom y Testing Library con API y Socket.io simulados.
 - `test:stress`: carga liviana sobre una API y base temporales; mezcla lecturas y creación de cotizaciones.
+- `test:fastapi-concurrency`: mide usuarios concurrentes sobre la API FastAPI en ejecución. Por defecto usa `/api/health`, por lo que no toca datos reales.
+- `test:fastapi-concurrency:mixed`: mide usuarios concurrentes que leen productos y crean clientes de prueba al mismo tiempo.
 - `test:catalog`: carga 850 productos y mide API, renderizado completo y búsqueda desde Chromium.
 - `test:scale`: benchmark pesado con 850 productos y 100.001 cotizaciones con detalle.
 - `test:accounting`: reconcilia 5.000 ventas de un día contra un cálculo contable independiente.
@@ -114,6 +118,45 @@ La versión es candidata a entrega cuando `npm run test:all` termina sin fallos 
 ## Prueba de carga simple
 
 `npm run test:stress` ejecuta 300 solicitudes de lectura con concurrencia 25 y 25 cotizaciones sostenidas. Las escrituras se serializan porque SQLite solo dispone de un escritor a la vez. La prueba exige cero respuestas fallidas y un percentil 95 inferior a 2 segundos. Los umbrales buscan detectar bloqueos o degradaciones grandes en un equipo de desarrollo; no representan todavía una certificación de capacidad productiva.
+
+## Concurrencia FastAPI
+
+Para estimar cuántos usuarios concurrentes soporta la API FastAPI, primero levanta el backend y luego ejecuta:
+
+```bash
+npm run test:fastapi-concurrency
+```
+
+Por defecto prueba `/api/health` en niveles `1,5,10,25,50,100`, con 10 solicitudes por usuario virtual. Reporta promedio, p95, máximo, errores y solicitudes por segundo. El número final `Usuarios concurrentes saludables estimados` corresponde al mayor nivel con menos de 1% de error y p95 menor o igual a 1000 ms.
+
+Para medir usuarios concurrentes que consultan base de datos, por ejemplo productos:
+
+```bash
+python3 tests/load/fastapi_concurrency.py --path '/api/productos?activo=true' --levels 1,10,25,50,100,200 --requests-per-user 20 --max-p95-ms 1500
+```
+
+Para medir usuarios que consultan la base y además crean información al mismo tiempo, usa el escenario mixto:
+
+```bash
+python3 tests/load/fastapi_concurrency.py \
+  --scenario mixed-db \
+  --path '/api/productos?activo=true' \
+  --write-path '/api/clientes' \
+  --levels 1,10,25,50,100,200 \
+  --requests-per-user 20 \
+  --write-every 3 \
+  --max-p95-ms 1500
+```
+
+Atajo equivalente con valores por defecto:
+
+```bash
+npm run test:fastapi-concurrency:mixed
+```
+
+En este modo cada usuario virtual hace lecturas y cada tercera acción crea un cliente de prueba con nombre `Carga ...`. El reporte muestra métricas globales y separa p95 de lecturas y escrituras.
+
+Importante: el escenario `mixed-db` crea datos. Ejecútalo contra una base descartable o de testing, no contra la base real.
 
 ## Catálogo con más de 800 productos
 

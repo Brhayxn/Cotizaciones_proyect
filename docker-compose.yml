@@ -1,0 +1,36 @@
+services:
+  app:
+    build:
+      context: .
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      HOST: 0.0.0.0
+      PORT: 8000
+      DATABASE_URL: postgresql+psycopg://cotizaciones:cotizaciones123@db:5432/cotizaciones
+      DATABASE_ECHO: "false"
+      CORS_ORIGINS: "*"
+      SOCKET_CORS_ORIGINS: "*"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cotizaciones
+      POSTGRES_USER: cotizaciones
+      POSTGRES_PASSWORD: cotizaciones123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cotizaciones -d cotizaciones"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

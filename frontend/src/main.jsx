@@ -6,6 +6,7 @@ import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
+    {/* BrowserRouter habilita navegación SPA sin recargar la página. */}
     <BrowserRouter>
       <App />
     </BrowserRouter>

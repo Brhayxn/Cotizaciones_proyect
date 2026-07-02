@@ -4,6 +4,7 @@ import { formatCurrency } from '../utils/formatCurrency.js';
 import GlassCard from './GlassCard.jsx';
 
 const paymentMethods = [
+  // Opciones reflejan los métodos aceptados por backend y cálculo de redondeo.
   { value: 'transferencia', label: 'Transferencia', icon: Landmark },
   { value: 'debito_credito', label: 'Débito/crédito', icon: CreditCard },
   { value: 'efectivo', label: 'Efectivo', icon: Banknote }
@@ -29,14 +30,17 @@ export default function CartPanel({
   onClear,
   isScreenLive
 }) {
+  // Controla solo la visibilidad del autocompletado; los datos del cliente viven arriba.
   const [isClientSearchOpen, setIsClientSearchOpen] = useState(false);
 
   const updateClientField = (field, value) => {
+    // Permite escribir cliente nuevo y al mismo tiempo mostrar sugerencias existentes.
     setCliente({ ...cliente, [field]: value });
     setIsClientSearchOpen(true);
   };
 
   const selectClient = (client) => {
+    // Copia los campos usados por la cotización y cierra el listado de sugerencias.
     setCliente({
       nombre: client.nombre || '',
       telefono: client.telefono || ''
@@ -44,6 +48,7 @@ export default function CartPanel({
     setIsClientSearchOpen(false);
   };
 
+  // Con varios productos el panel limita altura para mantener acciones visibles.
   const isOverflowMode = cart.length > 1;
 
   return (
@@ -76,6 +81,7 @@ export default function CartPanel({
             onFocus={() => setIsClientSearchOpen(true)}
           />
           {isClientSearchOpen && clientSuggestions.length > 0 && (
+            // onMouseDown evita que el blur cierre la lista antes de seleccionar.
             <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-30 overflow-hidden rounded-[1.4rem] border border-white/10 bg-[#15181c] p-2 shadow-soft">
               {clientSuggestions.map((client) => (
                 <button
@@ -176,6 +182,7 @@ export default function CartPanel({
         </div>
 
         {paymentMethod === 'efectivo' && (
+          // En efectivo se muestra el ajuste para que el vendedor vea de dónde sale el total final.
           <div className="mb-2 space-y-1 border-y border-white/10 py-2 text-xs">
             <div className="flex items-center justify-between gap-3 text-zinc-400">
               <span>Total previo</span>

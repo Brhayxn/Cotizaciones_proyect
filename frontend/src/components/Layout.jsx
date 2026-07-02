@@ -3,6 +3,7 @@ import BottomNav from './BottomNav.jsx';
 import logoFerreteria from '../assets/logo-ferreteria-castillo.png';
 
 const titles = {
+  // Títulos visibles según ruta principal.
   '/dashboard': 'Dashboard',
   '/productos': 'Productos',
   '/clientes': 'Clientes',
@@ -11,6 +12,7 @@ const titles = {
 };
 
 export default function Layout() {
+  // Layout compartido: fondo, encabezado, contenido de ruta y navegación lateral.
   const location = useLocation();
   const title = titles[location.pathname] || 'Dashboard';
 

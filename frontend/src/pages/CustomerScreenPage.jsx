@@ -6,6 +6,7 @@ import { formatCurrency } from '../utils/formatCurrency.js';
 import logoFerreteria from '../assets/logo-ferreteria-castillo.png';
 
 export default function CustomerScreenPage() {
+  // Cada pantalla puede unirse a una sala distinta; por defecto usa pantalla-1.
   const params = useParams();
   const screenId = params.screenId || 'pantalla-1';
   const [quote, setQuote] = useState({ cliente: null, items: [], total: 0 });
@@ -14,10 +15,12 @@ export default function CustomerScreenPage() {
 
   useEffect(() => {
     const join = () => {
+      // Al conectar o reconectar vuelve a entrar a la sala para recibir actualizaciones.
       setConnected(true);
       socket.emit('screen:join', { screenId });
     };
     const disconnect = () => setConnected(false);
+    // La pantalla solo refleja lo que emite el vendedor; no consulta la API.
     const updateQuote = (data) => setQuote(data || { cliente: null, items: [], total: 0 });
     const clearQuote = () => setQuote({ cliente: null, items: [], total: 0 });
 
@@ -39,6 +42,7 @@ export default function CustomerScreenPage() {
   const getDiscount = (item) => Number(item.descuento_aplicado ?? item.descuento ?? 0);
 
   useEffect(() => {
+    // Hace scroll al último producto para que el cliente vea cambios recientes.
     if (!hasQuote) return;
 
     const timer = window.setTimeout(() => {

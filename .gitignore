@@ -6,3 +6,7 @@ backend/backups/
 test-results/
 playwright-report/
 coverage/
+__pycache__/
+*.pyc
+.venv/
+backend_fastapi/.venv/

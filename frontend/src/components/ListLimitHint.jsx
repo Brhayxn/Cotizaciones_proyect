@@ -1,6 +1,7 @@
 import { Search } from 'lucide-react';
 
 export default function ListLimitHint({ meta }) {
+  // Solo aparece cuando backend limitó resultados y conviene refinar la búsqueda.
   if (!meta?.hasMore) return null;
 
   return (

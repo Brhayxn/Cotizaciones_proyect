@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 export function useDebouncedValue(value, delay = 300) {
+  // Retrasa cambios rápidos para no disparar búsquedas al backend en cada tecla.
   const [debouncedValue, setDebouncedValue] = useState(value);
 
   useEffect(() => {

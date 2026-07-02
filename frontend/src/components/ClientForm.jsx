@@ -4,13 +4,16 @@ import { Save, X } from 'lucide-react';
 const initialState = { nombre: '', telefono: '' };
 
 export default function ClientForm({ client, onSubmit, onCancel }) {
+  // Usa el mismo formulario para crear y editar clientes.
   const [form, setForm] = useState(initialState);
 
   useEffect(() => {
+    // Cuando cambia el cliente seleccionado, actualiza campos visibles.
     setForm(client ? { nombre: client.nombre || '', telefono: client.telefono || '' } : initialState);
   }, [client]);
 
   const handleSubmit = (event) => {
+    // La validación fuerte queda en backend/Pydantic; aquí se evita recargar la página.
     event.preventDefault();
     onSubmit(form);
   };

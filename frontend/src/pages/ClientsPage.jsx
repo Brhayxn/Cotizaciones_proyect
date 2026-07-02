@@ -11,6 +11,7 @@ import { useDebouncedValue } from '../hooks/useDebouncedValue.js';
 const getArrayData = (response) => Array.isArray(response?.data) ? response.data : [];
 
 export default function ClientsPage() {
+  // Administra clientes y permite abrir su historial sin salir de la vista.
   const [clients, setClients] = useState([]);
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -24,6 +25,7 @@ export default function ClientsPage() {
   const debouncedSearch = useDebouncedValue(search);
 
   const loadClients = async () => {
+    // Usa debounce + requestId para que búsquedas rápidas no mezclen resultados.
     const currentRequest = ++requestId.current;
     setLoading(true);
     try {
@@ -43,6 +45,7 @@ export default function ClientsPage() {
   }, [debouncedSearch]);
 
   const saveClient = async (payload) => {
+    // Reutiliza el mismo formulario para alta y edición.
     try {
       if (editing) {
         await clientService.update(editing.id, payload);
@@ -60,6 +63,7 @@ export default function ClientsPage() {
   };
 
   const removeClient = async (client) => {
+    // La eliminación depende de reglas del backend si el cliente tiene ventas asociadas.
     try {
       await clientService.remove(client.id);
       toast.success('Cliente eliminado');
@@ -70,6 +74,7 @@ export default function ClientsPage() {
   };
 
   const toggleHistory = async (client) => {
+    // Cachea historial por cliente para no pedirlo cada vez que se abre/cierra.
     if (openHistoryId === client.id) {
       setOpenHistoryId(null);
       return;

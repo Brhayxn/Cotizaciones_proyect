@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { Boxes, LayoutDashboard, Package, ReceiptText, UsersRound } from 'lucide-react';
 
 const items = [
+  // Navegación principal de módulos del sistema.
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/productos', label: 'Productos', icon: Package },
   { to: '/clientes', label: 'Clientes', icon: UsersRound },
@@ -11,10 +12,12 @@ const items = [
 ];
 
 export default function BottomNav() {
+  // Pequeña animación para compactar la navegación después de seleccionar una ruta.
   const [isCollapsing, setIsCollapsing] = useState(false);
   const collapseTimer = useRef(null);
 
   const collapseAfterSelect = (event) => {
+    // Quita foco visual en botones después de navegar.
     event.currentTarget.blur();
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();

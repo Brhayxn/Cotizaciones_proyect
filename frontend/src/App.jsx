@@ -13,6 +13,7 @@ import PrintableQuote from './components/PrintableQuote.jsx';
 export default function App() {
   return (
     <>
+      {/* Toaster global: todas las páginas pueden mostrar feedback sin configuración propia. */}
       <Toaster
         position="top-right"
         toastOptions={{
@@ -40,6 +41,7 @@ export default function App() {
         }}
       />
       <Routes>
+        {/* Rutas internas con layout principal de administración/venta. */}
         <Route path="/" element={<Layout />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
@@ -48,6 +50,7 @@ export default function App() {
           <Route path="inventario" element={<InventoryPage />} />
           <Route path="venta" element={<QuotePage />} />
         </Route>
+        {/* Rutas sin layout para pantalla cliente e impresión. */}
         <Route path="/pantalla-cliente" element={<CustomerScreenPage />} />
         <Route path="/pantalla/:screenId" element={<CustomerScreenPage />} />
         <Route path="/cotizacion/imprimir" element={<PrintableQuote />} />

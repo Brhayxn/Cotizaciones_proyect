@@ -10,6 +10,7 @@ import { useDebouncedValue } from '../hooks/useDebouncedValue.js';
 const getArrayData = (response) => Array.isArray(response?.data) ? response.data : [];
 
 const movementLabels = {
+  // Etiquetas visibles para los tipos que también valida el backend.
   abastecimiento: 'Abastecimiento',
   ajuste: 'Ajuste',
   venta: 'Venta',
@@ -17,6 +18,7 @@ const movementLabels = {
 };
 
 export default function InventoryPage() {
+  // Combina historial de movimientos, resumen y formulario de ajuste manual.
   const [movements, setMovements] = useState([]);
   const [movementType, setMovementType] = useState('');
   const [productSearch, setProductSearch] = useState('');
@@ -37,6 +39,7 @@ export default function InventoryPage() {
   const debouncedManualSearch = useDebouncedValue(manualProductSearch);
 
   const loadMovements = async () => {
+    // Lista movimientos filtrados y evita pintar respuestas antiguas.
     const currentRequest = ++movementRequestId.current;
     setLoading(true);
     try {
@@ -60,6 +63,7 @@ export default function InventoryPage() {
   }, [movementType, debouncedProductSearch]);
 
   const loadSummary = async () => {
+    // Resumen independiente para poder refrescarlo tras ajustes manuales.
     try {
       const response = await inventoryService.getSummary();
       setSummary(response.data || { productos: 0, stockTotal: 0, stockBajo: 0 });
@@ -73,6 +77,7 @@ export default function InventoryPage() {
   }, []);
 
   useEffect(() => {
+    // Autocompleta productos activos para registrar movimientos manuales.
     const term = debouncedManualSearch.trim();
     const currentRequest = ++suggestionRequestId.current;
     if (term.length < 2 || form.Producto_id) {
@@ -95,12 +100,14 @@ export default function InventoryPage() {
   };
 
   const selectManualProduct = (product) => {
+    // Guarda el id real aunque el input muestre el nombre del producto.
     setForm((current) => ({ ...current, Producto_id: product.id }));
     setManualProductSearch(product.nombre);
     setIsManualSearchOpen(false);
   };
 
   const saveMovement = async (event) => {
+    // Valida en frontend para dar feedback rápido antes de llamar al backend.
     event.preventDefault();
     if (!form.Producto_id) {
       toast.error('Selecciona un producto');

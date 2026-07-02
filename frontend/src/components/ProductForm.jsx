@@ -3,6 +3,7 @@ import { BadgePercent, Save, X } from 'lucide-react';
 import { formatCurrency } from '../utils/formatCurrency.js';
 
 const initialState = {
+  // Valores como string facilitan trabajar con inputs numéricos vacíos.
   nombre: '',
   precio: '',
   descuento_maximo: 0,
@@ -12,13 +13,16 @@ const initialState = {
 };
 
 export default function ProductForm({ product, categories, onSubmit, onCancel }) {
+  // El formulario se reinicia o se llena según si estamos creando o editando.
   const [form, setForm] = useState(initialState);
+  // Vista previa del mayor descuento permitido para ayudar al vendedor a configurar precio.
   const price = Math.max(0, Number(form.precio) || 0);
   const maximumDiscount = Math.min(100, Math.max(0, Number(form.descuento_maximo) || 0));
   const finalPrice = Math.round(price * ((100 - maximumDiscount) / 100));
   const maximumSaving = price - finalPrice;
 
   useEffect(() => {
+    // Sincroniza el formulario cuando el usuario cambia el producto seleccionado para editar.
     if (product) {
       setForm({
         nombre: product.nombre || '',
@@ -39,6 +43,7 @@ export default function ProductForm({ product, categories, onSubmit, onCancel })
   };
 
   const handleSubmit = (event) => {
+    // Convierte campos numéricos antes de enviarlos al backend.
     event.preventDefault();
     onSubmit({
       ...form,

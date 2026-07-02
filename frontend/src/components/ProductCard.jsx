@@ -3,8 +3,10 @@ import { formatCurrency } from '../utils/formatCurrency.js';
 import GlassCard from './GlassCard.jsx';
 
 export default function ProductCard({ product, onAdd, onEdit, onToggle, compact = false }) {
+  // El componente se reutiliza en administración y venta; las acciones llegan por props.
   const stock = Number(product.stock ?? 0);
   const descuentoMaximo = Number(product.descuento_maximo ?? 0);
+  // En venta no deja agregar productos sin stock, pero en administración sigue mostrando botones.
   const canAdd = !onAdd || stock > 0;
 
   return (

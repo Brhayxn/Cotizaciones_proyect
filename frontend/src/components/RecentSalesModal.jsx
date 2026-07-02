@@ -9,6 +9,7 @@ import { socket } from '../config/socket.js';
 const getArrayData = (response) => Array.isArray(response?.data) ? response.data : [];
 
 const stateStyles = {
+  // Colores por estado para identificar rápido si una venta afecta stock o no.
   confirmada: 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100',
   cotizada: 'border-sky-300/25 bg-sky-400/10 text-sky-100',
   anulada: 'border-red-300/25 bg-red-400/10 text-red-100'
@@ -23,6 +24,7 @@ const stateLabels = {
 const getSaleTotal = (sale) => Number(sale.totalVenta ?? sale.total ?? sale.totalCotizacion ?? 0);
 
 export default function RecentSalesModal({ open, onClose, onChanged }) {
+  // Carga y permite anular ventas recientes sin salir de la pantalla de venta.
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(false);
   const [cancellingId, setCancellingId] = useState(null);
@@ -30,6 +32,7 @@ export default function RecentSalesModal({ open, onClose, onChanged }) {
   const recentSales = useMemo(() => sales.slice(0, 40), [sales]);
 
   const loadSales = async () => {
+    // Solo consulta ventas de hoy para mantener el modal liviano.
     setLoading(true);
     try {
       const response = await saleService.getToday({ limit: 40 });
@@ -42,12 +45,14 @@ export default function RecentSalesModal({ open, onClose, onChanged }) {
   };
 
   useEffect(() => {
+    // Carga al abrir para mostrar datos frescos después de nuevas ventas.
     if (open) loadSales();
   }, [open]);
 
   useEffect(() => {
     if (!open) return undefined;
 
+    // Escape cierra el modal como comportamiento esperado en escritorio.
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') onClose();
     };
@@ -57,6 +62,7 @@ export default function RecentSalesModal({ open, onClose, onChanged }) {
   }, [open, onClose]);
 
   const cancelSale = async (sale) => {
+    // Anular puede devolver stock, por eso se pide confirmación explícita.
     const confirmed = window.confirm(`¿Anular venta #${sale.id}? Esta acción devolverá stock si la venta estaba confirmada.`);
     if (!confirmed) return;
 

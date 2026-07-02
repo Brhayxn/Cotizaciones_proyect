@@ -25,6 +25,7 @@ const getArrayData = (response) => Array.isArray(response?.data) ? response.data
 const PRINT_FRAME_ID = 'quote-print-frame';
 
 export default function QuotePage() {
+  // Estado principal de la pantalla de venta: catálogo, carrito, cliente y pago.
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [clients, setClients] = useState([]);
@@ -37,14 +38,17 @@ export default function QuotePage() {
   const [isRecentSalesOpen, setIsRecentSalesOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('');
   const [productMeta, setProductMeta] = useState(null);
+  // Los ids evitan que una respuesta lenta reemplace datos de una búsqueda más reciente.
   const productRequestId = useRef(0);
   const clientRequestId = useRef(0);
+  // El socket usa callbacks persistentes; este ref mantiene el carrito actualizado dentro de ellos.
   const cartRef = useRef([]);
   const debouncedSearch = useDebouncedValue(search);
   const clientTerm = cliente.nombre.trim() || cliente.telefono.trim();
   const debouncedClientTerm = useDebouncedValue(clientTerm);
 
   const loadProducts = async () => {
+    // Carga productos activos respetando búsqueda/categoría sin confiar en respuestas viejas.
     const currentRequest = ++productRequestId.current;
     setLoading(true);
     try {
@@ -64,21 +68,25 @@ export default function QuotePage() {
   };
 
   useEffect(() => {
+    // Las categorías cambian poco, por eso se cargan una vez al montar la pantalla.
     categoryService.getAll()
       .then((response) => setCategories(getArrayData(response)))
       .catch((err) => toast.error(err.message));
   }, []);
 
   useEffect(() => {
+    // Recarga productos cuando cambian filtros ya estabilizados por debounce.
     loadProducts();
   }, [debouncedSearch, category]);
 
   useEffect(() => {
+    // Mantiene el ref sincronizado para handlers de socket registrados una sola vez.
     cartRef.current = cart;
   }, [cart]);
 
   useEffect(() => {
     const handleStockUpdate = (payload = {}) => {
+      // Sincroniza stock si otra venta, anulación o ajuste modificó productos del carrito.
       const updates = Array.isArray(payload.products) ? payload.products : [];
       if (updates.length === 0) return;
 
@@ -94,6 +102,7 @@ export default function QuotePage() {
       const nextCart = [];
 
       for (const item of cartRef.current) {
+        // Si el producto quedó sin stock se retira; si bajó stock se reduce la cantidad.
         const update = updatesById.get(Number(item.id));
         if (!update) {
           nextCart.push(item);
@@ -133,12 +142,14 @@ export default function QuotePage() {
   }, []);
 
   useEffect(() => {
+    // Al reconectar se refresca catálogo para recuperar cambios perdidos sin socket.
     const handleReconnect = () => loadProducts();
     socket.on('connect', handleReconnect);
     return () => socket.off('connect', handleReconnect);
   }, [debouncedSearch, category]);
 
   useEffect(() => {
+    // Autocompleta clientes solo cuando hay texto suficiente para evitar consultas inútiles.
     const term = debouncedClientTerm.trim();
     const currentRequest = ++clientRequestId.current;
     if (term.length < 2) {
@@ -156,6 +167,7 @@ export default function QuotePage() {
   }, [debouncedClientTerm]);
 
   const unroundedTotal = useMemo(() => calculateQuoteTotal(cart), [cart]);
+  // El cálculo de pago queda memorizado para no recalcularlo en cada render innecesario.
   const paymentTotals = useMemo(
     () => calculatePaymentTotals(unroundedTotal, paymentMethod),
     [unroundedTotal, paymentMethod]
@@ -165,6 +177,7 @@ export default function QuotePage() {
   useEffect(() => {
     if (!isScreenLive) return undefined;
 
+    // Envía la cotización a la pantalla cliente con pequeño debounce para no saturar el socket.
     const timer = window.setTimeout(() => {
       if (cart.length === 0) {
         socket.emit('sale:clear', { screenId: SCREEN_ID });
@@ -192,6 +205,7 @@ export default function QuotePage() {
   }, [cart, cliente, total, isScreenLive, paymentMethod, paymentTotals]);
 
   const addToCart = (product) => {
+    // Si el producto ya existe, solo aumenta cantidad hasta el stock disponible.
     setCart((current) => {
       const exists = current.find((item) => item.id === product.id);
       if (exists) {
@@ -207,6 +221,7 @@ export default function QuotePage() {
   };
 
   const updateQuantity = (id, quantity) => {
+    // Normaliza cantidad y recalcula subtotal en el mismo cambio de estado.
     setCart((current) => current.map((item) => {
       if (item.id !== id) return item;
       const nextQuantity = clampQuantity(quantity, item.stock);
@@ -216,6 +231,7 @@ export default function QuotePage() {
   };
 
   const updateDiscount = (id, discount) => {
+    // Respeta el descuento máximo definido por producto.
     setCart((current) => current.map((item) => {
       if (item.id !== id) return item;
       const nextDiscount = clampDiscount(discount, item.descuento_maximo);
@@ -227,6 +243,7 @@ export default function QuotePage() {
   const removeItem = (id) => setCart((current) => current.filter((item) => item.id !== id));
 
   const quoteForScreen = () => ({
+    // Payload liviano para la pantalla secundaria; no incluye campos administrativos.
     screenId: SCREEN_ID,
     cliente,
     metodo_pago: paymentMethod || null,
@@ -243,6 +260,7 @@ export default function QuotePage() {
   });
 
   const ensureValidQuote = () => {
+    // Validaciones comunes antes de mostrar, guardar, vender o imprimir.
     if (!cliente.nombre.trim()) {
       toast.error('Ingresa el nombre del cliente');
       return false;
@@ -260,6 +278,7 @@ export default function QuotePage() {
   };
 
   const showOnScreen = () => {
+    // Activa sincronización en vivo para que cambios posteriores también se emitan.
     if (!ensureValidQuote()) return;
     socket.emit('sale:show', quoteForScreen());
     setIsScreenLive(true);
@@ -267,6 +286,7 @@ export default function QuotePage() {
   };
 
   const buildSalePayload = (estado = 'cotizada') => ({
+    // El backend recalcula precios/totales; aquí se envían ids, cantidades y descuentos.
     estado,
     cliente,
     socket_id: socket.id || null,
@@ -279,6 +299,7 @@ export default function QuotePage() {
   });
 
   const saveQuote = async () => {
+    // Guarda como cotización, sin descontar stock.
     if (!ensureValidQuote()) return;
     const toastId = toast.loading('Guardando cotización...');
     try {
@@ -290,6 +311,7 @@ export default function QuotePage() {
   };
 
   const reconcileCartStock = async () => {
+    // Si falló por stock, consulta snapshots frescos para ajustar el carrito local.
     const currentCart = cartRef.current;
     if (currentCart.length === 0) return;
 
@@ -329,6 +351,7 @@ export default function QuotePage() {
   };
 
   const confirmSale = async () => {
+    // Confirmar venta descuenta stock en backend y luego refresca el catálogo local.
     if (!ensureValidQuote()) return;
     if (!paymentMethod) {
       toast.error('Selecciona un método de pago');
@@ -348,6 +371,7 @@ export default function QuotePage() {
   };
 
   const printQuote = () => {
+    // Se usa localStorage para pasar datos al iframe de impresión sin crear una ruta extra.
     if (!ensureValidQuote()) return;
     localStorage.setItem('printableQuote', JSON.stringify({
       cliente,
@@ -366,6 +390,7 @@ export default function QuotePage() {
       fecha: new Date().toISOString()
     }));
 
+    // El iframe invisible permite abrir el diálogo PDF sin cambiar la pantalla actual.
     const previousFrame = document.getElementById(PRINT_FRAME_ID);
     previousFrame?.remove();
 
@@ -393,6 +418,7 @@ export default function QuotePage() {
   };
 
   const clearCart = () => {
+    // Limpia estado local y pantalla cliente si estaba en modo en vivo.
     setCart([]);
     setCliente({ nombre: '', telefono: '' });
     setPaymentMethod('');

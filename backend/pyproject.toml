@@ -1,0 +1,19 @@
+[project]
+name = "cotizaciones-fastapi-backend"
+version = "0.1.0"
+description = "Backend FastAPI para cotizaciones, ventas e inventario."
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.30.0",
+  "sqlalchemy>=2.0.0",
+  "psycopg[binary]>=3.2.0",
+  "pydantic-settings>=2.4.0",
+  "python-socketio>=5.11.0"
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.fastapi]
+entrypoint = "app.main:app"
