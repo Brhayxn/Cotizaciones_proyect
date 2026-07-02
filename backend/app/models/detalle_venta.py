@@ -3,7 +3,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
-
+#rama abonos
 class DetalleVenta(Base):
     """Línea de venta guardada como snapshot del producto al momento de cotizar."""
     __tablename__ = "detalle_ventas"
