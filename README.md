@@ -124,7 +124,6 @@ Cotizaciones_proyect/
 │   ├── package.json           # Dependencias frontend
 │   └── vite.config.js         # Configuración de compilación Vite
 ├── tests/                     # Suites de pruebas (backend, frontend, e2e, concurrencia, estrés)
-├── Docs/                      # Documentación comercial y respaldo de valor
 ├── docker-compose.yml         # Orquestación de contenedores (app + db)
 ├── Dockerfile                 # Construcción multi-stage (Node frontend + Python backend)
 └── package.json               # Scripts de desarrollo y pruebas globales
