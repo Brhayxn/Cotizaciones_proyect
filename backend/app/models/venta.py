@@ -14,6 +14,7 @@ class Venta(Base):
         CheckConstraint('"totalVenta" >= 0', name="ck_ventas_total"),
         CheckConstraint("total_sin_redondeo >= 0", name="ck_ventas_total_sin_redondeo"),
         CheckConstraint("estado IN ('cotizada', 'confirmada', 'anulada')", name="ck_ventas_estado"),
+        CheckConstraint("estado_pago IN ('pendiente', 'parcial', 'pagada')", name="ck_ventas_estado_pago"),
         CheckConstraint("metodo_pago IS NULL OR metodo_pago IN ('transferencia', 'debito_credito', 'efectivo')", name="ck_ventas_metodo_pago"),
         Index("idx_ventas_fecha_id", "fecha", "id"),
         Index("idx_ventas_estado_fecha_id", "estado", "fecha", "id"),
@@ -27,9 +28,19 @@ class Venta(Base):
     metodo_pago: Mapped[str | None] = mapped_column(String(30), nullable=True)
     fecha: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     estado: Mapped[str] = mapped_column(String(20), nullable=False, default="cotizada")
+    estado_pago: Mapped[str] = mapped_column(String(20), nullable=False, default="pendiente")
     Cliente_id: Mapped[int | None] = mapped_column(ForeignKey("clientes.id"), nullable=True)
 
     # El detalle guarda snapshots; movimientos registran los efectos sobre inventario.
     cliente = relationship("Cliente", back_populates="ventas")
     detalles = relationship("DetalleVenta", back_populates="venta", cascade="all, delete-orphan")
     movimientosInventario = relationship("MovimientoInventario", back_populates="venta")
+    pagos = relationship("PagoVenta", back_populates="venta", cascade="all, delete-orphan")
+
+    @property
+    def total_pagado(self) -> int:
+        return sum(pago.monto for pago in self.pagos or [])
+
+    @property
+    def saldo_pendiente(self) -> int:
+        return max(0, self.totalVenta - self.total_pagado)

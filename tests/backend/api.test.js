@@ -115,7 +115,7 @@ describe('productos e inventario', () => {
     await request(app).get('/api/productos?activo=quizas').expect(400);
   });
 
-  it('abastece, ajusta y filtra movimientos de inventario', async () => {
+  it('abastece, registra merma y filtra movimientos de inventario', async () => {
     await request(app).post('/api/inventario/movimientos').send({
       Producto_id: fixtures.producto.id,
       cantidad: 3,
@@ -128,7 +128,7 @@ describe('productos e inventario', () => {
       cantidad: 2,
       tipo_movimiento: 'ajuste'
     }).expect(201);
-    expect((await fixtures.producto.reload()).stock).toBe(2);
+    expect((await fixtures.producto.reload()).stock).toBe(6);
 
     const filtered = await request(app).get(`/api/inventario/movimientos?producto=${fixtures.producto.id}&tipo=ajuste`).expect(200);
     expect(filtered.body.data).toHaveLength(1);

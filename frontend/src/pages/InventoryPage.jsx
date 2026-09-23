@@ -12,13 +12,13 @@ const getArrayData = (response) => Array.isArray(response?.data) ? response.data
 const movementLabels = {
   // Etiquetas visibles para los tipos que también valida el backend.
   abastecimiento: 'Abastecimiento',
-  ajuste: 'Ajuste',
+  ajuste: 'Merma',
   venta: 'Venta',
   anulacion: 'Anulación'
 };
 
 export default function InventoryPage() {
-  // Combina historial de movimientos, resumen y formulario de ajuste manual.
+  // Combina historial de movimientos, resumen y formulario de movimiento manual.
   const [movements, setMovements] = useState([]);
   const [movementType, setMovementType] = useState('');
   const [productSearch, setProductSearch] = useState('');
@@ -63,7 +63,7 @@ export default function InventoryPage() {
   }, [movementType, debouncedProductSearch]);
 
   const loadSummary = async () => {
-    // Resumen independiente para poder refrescarlo tras ajustes manuales.
+    // Resumen independiente para poder refrescarlo tras movimientos manuales.
     try {
       const response = await inventoryService.getSummary();
       setSummary(response.data || { productos: 0, stockTotal: 0, stockBajo: 0 });
@@ -127,7 +127,7 @@ export default function InventoryPage() {
         cantidad,
         tipo_movimiento: form.tipo_movimiento
       });
-      toast.success(form.tipo_movimiento === 'ajuste' ? 'Stock ajustado' : 'Stock abastecido', { id: toastId });
+      toast.success(form.tipo_movimiento === 'ajuste' ? 'Merma registrada' : 'Stock abastecido', { id: toastId });
       setForm({ Producto_id: '', cantidad: '', tipo_movimiento: 'abastecimiento' });
       setManualProductSearch('');
       await Promise.all([loadMovements(), loadSummary()]);
@@ -250,7 +250,7 @@ export default function InventoryPage() {
                 Tipo
                 <select className="field-input" name="tipo_movimiento" value={form.tipo_movimiento} onChange={handleChange}>
                   <option value="abastecimiento">Abastecimiento</option>
-                  <option value="ajuste">Ajuste</option>
+                  <option value="ajuste">Merma</option>
                 </select>
               </label>
               <label className="field-label">

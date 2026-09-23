@@ -57,14 +57,18 @@ class InventarioService:
         return rows, build_meta(total, parsed_limit, len(rows))
 
     def create_manual_movement(self, db: Session, payload: MovimientoCreate) -> tuple[MovimientoInventario, int]:
-        """Registra ajustes manuales; devuelve el producto afectado para notificar por socket."""
+        """Registra movimientos manuales; devuelve el producto afectado para notificar por socket."""
         if payload.tipo_movimiento not in {"abastecimiento", "ajuste"}:
-            raise BusinessError("Solo se permiten movimientos manuales de abastecimiento o ajuste")
+            raise BusinessError("Solo se permiten movimientos manuales de abastecimiento o merma")
         producto = db.get(Producto, payload.Producto_id)
         if not producto:
             raise BusinessError("Producto no encontrado", 404)
-        # Abastecimiento suma unidades; ajuste fija el stock exacto informado por el usuario.
-        producto.stock = producto.stock + payload.cantidad if payload.tipo_movimiento == "abastecimiento" else payload.cantidad
+        if payload.tipo_movimiento == "abastecimiento":
+            producto.stock += payload.cantidad
+        else:
+            if producto.stock < payload.cantidad:
+                raise BusinessError("La merma no puede superar el stock disponible")
+            producto.stock -= payload.cantidad
         movimiento = MovimientoInventario(
             cantidad=payload.cantidad,
             tipo_movimiento=payload.tipo_movimiento,

@@ -23,6 +23,7 @@ class VentaCreate(BaseModel):
     """Payload para guardar cotización o confirmar venta desde el carrito."""
     estado: str = "cotizada"
     metodo_pago: str | None = None
+    monto_pagado: int | None = Field(default=None, ge=0)
     Cliente_id: int | None = None
     cliente: ClienteInline | None = None
     items: list[VentaItemCreate]
@@ -32,7 +33,15 @@ class VentaCreate(BaseModel):
 class VentaConfirmar(BaseModel):
     """Datos mínimos para pasar una cotización a venta confirmada."""
     metodo_pago: str | None = None
+    monto_pagado: int | None = Field(default=None, ge=0)
     socket_id: str | None = None
+
+
+class PagoVentaCreate(BaseModel):
+    """Pago posterior asociado a una venta confirmada."""
+    monto: int = Field(gt=0)
+    metodo_pago: str
+    nota: str | None = None
 
 
 class VentaAnular(BaseModel):
@@ -68,6 +77,18 @@ class MovimientoVentaRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PagoVentaRead(BaseModel):
+    """Pago registrado para una venta, usado por caja e historial."""
+    id: int
+    monto: int
+    metodo_pago: str
+    nota: str | None = None
+    fecha: datetime
+    Venta_id: int
+
+    model_config = {"from_attributes": True}
+
+
 class VentaRead(BaseModel):
     """Respuesta completa de venta para listados, detalle e historial."""
     id: int
@@ -77,9 +98,13 @@ class VentaRead(BaseModel):
     metodo_pago: str | None = None
     fecha: datetime
     estado: str
+    estado_pago: str
+    total_pagado: int = 0
+    saldo_pendiente: int = 0
     Cliente_id: int | None = None
     cliente: ClienteRead | None = None
     detalles: list[DetalleVentaRead] = []
     movimientosInventario: list[MovimientoVentaRead] = []
+    pagos: list[PagoVentaRead] = []
 
     model_config = {"from_attributes": True}

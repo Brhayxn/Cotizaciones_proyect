@@ -17,6 +17,10 @@ export default function CartPanel({
   roundingAdjustment,
   paymentMethod,
   setPaymentMethod,
+  paymentMode,
+  setPaymentMode,
+  initialPaymentAmount,
+  setInitialPaymentAmount,
   cliente,
   setCliente,
   clientSuggestions = [],
@@ -50,6 +54,12 @@ export default function CartPanel({
 
   // Con varios productos el panel limita altura para mantener acciones visibles.
   const isOverflowMode = cart.length > 1;
+  const initialPaymentPreview = paymentMode === 'full'
+    ? total
+    : paymentMode === 'none'
+      ? 0
+      : Math.min(total, Math.max(0, Number(initialPaymentAmount) || 0));
+  const pendingPreview = Math.max(0, total - initialPaymentPreview);
 
   return (
     <GlassCard className={`cart-panel ${isOverflowMode ? 'cart-panel-overflow' : 'cart-panel-auto'} sticky top-5 flex max-h-[calc(100vh-10rem)] flex-col self-start p-3 lg:w-[350px] xl:w-[390px]`}>
@@ -57,7 +67,7 @@ export default function CartPanel({
         <div>
           <p className="text-xs uppercase tracking-[0.28em] text-zinc-500">Carrito</p>
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="cart-panel-title text-[1.65rem] font-semibold leading-none">Cotización</h2>
+            <h2 className="cart-panel-title text-[1.65rem] font-semibold leading-none">Cotización / Venta</h2>
             {isScreenLive && (
               <span className="rounded-full border border-red-400/40 bg-red-500/15 px-3 py-1 text-xs font-bold text-red-100">
                 En vivo
@@ -194,6 +204,46 @@ export default function CartPanel({
             </div>
           </div>
         )}
+
+        <div className="mb-2 space-y-2 border-b border-white/10 pb-2">
+          <p className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-zinc-500">Pago inicial</p>
+          <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Pago inicial">
+            {[
+              { value: 'none', label: 'Sin abono' },
+              { value: 'partial', label: 'Abono' },
+              { value: 'full', label: 'Completo' }
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={paymentMode === option.value}
+                onClick={() => setPaymentMode(option.value)}
+                className={`min-h-10 rounded-xl border px-2 text-[0.66rem] font-bold transition-colors ${
+                  paymentMode === option.value
+                    ? 'border-white/80 bg-white text-black'
+                    : 'border-white/10 bg-black/20 text-zinc-400 hover:border-white/20 hover:text-white'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          {paymentMode === 'partial' && (
+            <input
+              className="field-input compact-input"
+              min="0"
+              max={total}
+              type="number"
+              value={initialPaymentAmount}
+              onChange={(event) => setInitialPaymentAmount(event.target.value)}
+              placeholder="Monto abonado"
+            />
+          )}
+          <div className="grid grid-cols-2 gap-2 text-xs text-zinc-400">
+            <span>Abono: <strong className="text-sky-100">{formatCurrency(initialPaymentPreview)}</strong></span>
+            <span>Saldo: <strong className="text-amber-100">{formatCurrency(pendingPreview)}</strong></span>
+          </div>
+        </div>
 
         <div className="flex items-end justify-between">
           <span className="text-zinc-400">Total final</span>

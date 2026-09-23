@@ -98,6 +98,7 @@ describe('QuotePage', () => {
     expect(mocks.saleCreate.mock.calls[0][0]).toMatchObject({
       estado: 'confirmada',
       metodo_pago: 'transferencia',
+      monto_pagado: 45000,
       items: [{ Producto_id: 1, cantidad: 5, descuento_aplicado: 10 }]
     });
   });
@@ -122,7 +123,25 @@ describe('QuotePage', () => {
     await user.click(screen.getByRole('button', { name: /vender/i }));
     await waitFor(() => expect(mocks.saleCreate).toHaveBeenCalledWith(expect.objectContaining({
       estado: 'confirmada',
-      metodo_pago: 'efectivo'
+      metodo_pago: 'efectivo',
+      monto_pagado: 12320
+    })));
+  });
+
+  it('permite confirmar venta sin abono inicial', async () => {
+    const user = userEvent.setup();
+    render(<QuotePage />);
+    await screen.findByText('Martillo Azul');
+    await user.click(screen.getAllByRole('button', { name: /agregar/i })[0]);
+    await user.type(screen.getByPlaceholderText(/buscar o crear cliente/i), 'Cliente saldo');
+    await user.click(screen.getByRole('button', { name: /transferencia/i }));
+    await user.click(screen.getByRole('button', { name: /sin abono/i }));
+    await user.click(screen.getByRole('button', { name: /vender/i }));
+
+    await waitFor(() => expect(mocks.saleCreate).toHaveBeenCalledWith(expect.objectContaining({
+      estado: 'confirmada',
+      metodo_pago: 'transferencia',
+      monto_pagado: 0
     })));
   });
 

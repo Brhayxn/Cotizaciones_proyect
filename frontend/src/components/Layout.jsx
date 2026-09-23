@@ -27,7 +27,7 @@ export default function Layout() {
               <img className="max-h-full max-w-full object-contain" src={logoFerreteria} alt="Ferretería Castillo SPA" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs uppercase tracking-[0.32em] text-sky-200/80">Ferretería Castillo SPA</p>
+              <p className="text-xs uppercase tracking-[0.32em] text-sky-200/80">Sistema de ventas</p>
               <h1 className="app-title mt-2 font-display text-3xl font-semibold tracking-normal sm:text-4xl">{title}</h1>
             </div>
           </div>

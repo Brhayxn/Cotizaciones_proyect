@@ -13,7 +13,7 @@ class InventarioResumen(BaseModel):
 
 
 class MovimientoCreate(BaseModel):
-    """Entrada para ajustes o abastecimientos manuales de stock."""
+    """Entrada para mermas o abastecimientos manuales de stock."""
     Producto_id: int
     cantidad: int = Field(gt=0)
     tipo_movimiento: str

@@ -37,6 +37,8 @@ export default function QuotePage() {
   const [isScreenLive, setIsScreenLive] = useState(false);
   const [isRecentSalesOpen, setIsRecentSalesOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('');
+  const [paymentMode, setPaymentMode] = useState('full');
+  const [initialPaymentAmount, setInitialPaymentAmount] = useState('');
   const [productMeta, setProductMeta] = useState(null);
   // Los ids evitan que una respuesta lenta reemplace datos de una búsqueda más reciente.
   const productRequestId = useRef(0);
@@ -285,12 +287,18 @@ export default function QuotePage() {
     toast.success('Cotización en vivo en pantalla');
   };
 
+  const getInitialPaymentAmount = () => {
+    if (paymentMode === 'none') return 0;
+    if (paymentMode === 'full') return total;
+    return Math.min(total, Math.max(0, Number(initialPaymentAmount) || 0));
+  };
+
   const buildSalePayload = (estado = 'cotizada') => ({
     // El backend recalcula precios/totales; aquí se envían ids, cantidades y descuentos.
     estado,
     cliente,
     socket_id: socket.id || null,
-    ...(estado === 'confirmada' ? { metodo_pago: paymentMethod } : {}),
+    ...(estado === 'confirmada' ? { metodo_pago: paymentMethod, monto_pagado: getInitialPaymentAmount() } : {}),
     items: cart.map((item) => ({
       Producto_id: item.id,
       cantidad: Number(item.cantidad),
@@ -357,12 +365,19 @@ export default function QuotePage() {
       toast.error('Selecciona un método de pago');
       return;
     }
+    if (paymentMode === 'partial' && Number(initialPaymentAmount) > total) {
+      toast.error('El abono no puede superar el total');
+      return;
+    }
     const toastId = toast.loading('Confirmando venta...');
     try {
       await saleService.create(buildSalePayload('confirmada'));
-      toast.success('Venta confirmada y stock descontado', { id: toastId });
+      const paid = getInitialPaymentAmount();
+      toast.success(paid >= total ? 'Venta confirmada y stock descontado' : 'Venta confirmada con saldo pendiente', { id: toastId });
       setCart([]);
       setPaymentMethod('');
+      setPaymentMode('full');
+      setInitialPaymentAmount('');
       await loadProducts();
     } catch (err) {
       if (/stock insuficiente/i.test(err.message)) await reconcileCartStock();
@@ -422,6 +437,8 @@ export default function QuotePage() {
     setCart([]);
     setCliente({ nombre: '', telefono: '' });
     setPaymentMethod('');
+    setPaymentMode('full');
+    setInitialPaymentAmount('');
     if (isScreenLive) {
       socket.emit('sale:clear', { screenId: SCREEN_ID });
       setIsScreenLive(false);
@@ -475,6 +492,10 @@ export default function QuotePage() {
         roundingAdjustment={paymentTotals.roundingAdjustment}
         paymentMethod={paymentMethod}
         setPaymentMethod={setPaymentMethod}
+        paymentMode={paymentMode}
+        setPaymentMode={setPaymentMode}
+        initialPaymentAmount={initialPaymentAmount}
+        setInitialPaymentAmount={setInitialPaymentAmount}
         cliente={cliente}
         setCliente={setCliente}
         clientSuggestions={clients}

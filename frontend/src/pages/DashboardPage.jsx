@@ -55,6 +55,8 @@ const getChileHour = (date) => Number(hourFormatter.format(date).replace('24', '
 const getSaleState = (sale) => String(sale.estado || '').trim().toLowerCase();
 const getSaleTotal = (sale) => Number(sale.totalVenta ?? sale.total ?? sale.totalCotizacion ?? 0);
 const getSaleDetails = (sale) => (Array.isArray(sale.detalles) ? sale.detalles : []);
+const getSalePayments = (sale) => (Array.isArray(sale.pagos) ? sale.pagos : []);
+const getSalePaid = (sale) => Number(sale.total_pagado ?? getSalePayments(sale).reduce((sum, payment) => sum + Number(payment.monto || 0), 0));
 
 const PAYMENT_METHODS = [
   { value: 'efectivo', label: 'Efectivo', icon: Banknote, tone: 'lime' },
@@ -66,28 +68,18 @@ const PERIODS = {
   today: {
     label: 'Hoy',
     days: 1,
-    chartLabel: 'Ventas de hoy',
+    chartLabel: 'Recaudación de hoy',
     load: () => saleService.getToday()
   },
   week: {
     label: '7 días',
     days: 7,
-    chartLabel: 'Últimos 7 días',
+    chartLabel: 'Recaudación últimos 7 días',
     load: () => saleService.getLastWeek()
   }
 };
 
 const buildInsights = (sales = [], period = 'week') => {
-  // Separa ventas confirmadas/cotizadas para no mezclar ingresos reales con cotizaciones.
-  const activeSales = sales.filter((sale) => getSaleState(sale) !== 'anulada');
-  const confirmedSales = sales.filter((sale) => getSaleState(sale) === 'confirmada');
-  const quotedSales = sales.filter((sale) => getSaleState(sale) === 'cotizada');
-  const totalRevenue = confirmedSales.reduce((sum, sale) => sum + getSaleTotal(sale), 0);
-  const totalItems = confirmedSales.reduce(
-    (sum, sale) => sum + getSaleDetails(sale).reduce((itemSum, item) => itemSum + Number(item.cantidad || 0), 0),
-    0
-  );
-
   const productMap = new Map();
   const hourMap = new Map();
   const dayMap = new Map();
@@ -111,34 +103,59 @@ const buildInsights = (sales = [], period = 'week') => {
     });
   }
 
-  for (const sale of confirmedSales) {
-    // Acumula datos por hora, día, método de pago y producto en una sola pasada.
-    const saleDate = normalizeDate(sale.fecha || sale.createdAt);
-    const hour = getChileHour(saleDate);
-    const hourBucket = hourMap.get(hour) || { hour, count: 0, total: 0 };
-    hourBucket.count += 1;
-    hourBucket.total += getSaleTotal(sale);
-    hourMap.set(hour, hourBucket);
+  const isInPeriod = (value) => dayMap.has(getChileDayKey(normalizeDate(value)));
 
-    if (paymentMap.has(sale.metodo_pago)) {
-      const paymentBucket = paymentMap.get(sale.metodo_pago);
-      paymentBucket.count += 1;
-      paymentBucket.total += getSaleTotal(sale);
+  // Las ventas se miden por fecha de venta; la caja se mide por fecha real del pago.
+  const activeSales = sales.filter((sale) => getSaleState(sale) !== 'anulada' && isInPeriod(sale.fecha || sale.createdAt));
+  const confirmedSales = sales.filter((sale) => getSaleState(sale) === 'confirmada' && isInPeriod(sale.fecha || sale.createdAt));
+  const quotedSales = sales.filter((sale) => getSaleState(sale) === 'cotizada' && isInPeriod(sale.fecha || sale.createdAt));
+  const totalConfirmedValue = confirmedSales.reduce((sum, sale) => sum + getSaleTotal(sale), 0);
+  let totalRevenue = 0;
+  const pendingBalance = confirmedSales.reduce((sum, sale) => sum + Number(sale.saldo_pendiente ?? Math.max(0, getSaleTotal(sale) - getSalePaid(sale))), 0);
+  const totalItems = confirmedSales.reduce(
+    (sum, sale) => sum + getSaleDetails(sale).reduce((itemSum, item) => itemSum + Number(item.cantidad || 0), 0),
+    0
+  );
+
+  for (const sale of sales.filter((row) => getSaleState(row) === 'confirmada')) {
+    if (isInPeriod(sale.fecha || sale.createdAt)) {
+      for (const detail of getSaleDetails(sale)) {
+        const name = detail.nombre_producto || detail.producto?.nombre || 'Producto sin nombre';
+        const previous = productMap.get(name) || { name, units: 0, total: 0 };
+        previous.units += Number(detail.cantidad || 0);
+        previous.total += Number(detail.subtotal || 0);
+        productMap.set(name, previous);
+      }
     }
 
-    const dayKey = getChileDayKey(saleDate);
-    if (dayMap.has(dayKey)) {
+    const paymentsForSale = getSalePayments(sale);
+    const payments = paymentsForSale.length
+      ? paymentsForSale
+      : [{ monto: getSalePaid(sale), metodo_pago: sale.metodo_pago, fecha: sale.fecha || sale.createdAt }];
+
+    for (const payment of payments) {
+      const amount = Number(payment.monto || 0);
+      const paymentDate = normalizeDate(payment.fecha || sale.fecha || sale.createdAt);
+      const dayKey = getChileDayKey(paymentDate);
+      if (!amount || !dayMap.has(dayKey)) continue;
+
+      totalRevenue += amount;
+
+      const hour = getChileHour(paymentDate);
+      const hourBucket = hourMap.get(hour) || { hour, count: 0, total: 0 };
+      hourBucket.count += 1;
+      hourBucket.total += amount;
+      hourMap.set(hour, hourBucket);
+
+      if (paymentMap.has(payment.metodo_pago)) {
+        const paymentBucket = paymentMap.get(payment.metodo_pago);
+        paymentBucket.count += 1;
+        paymentBucket.total += amount;
+      }
+
       const dayBucket = dayMap.get(dayKey);
-      dayBucket.total += getSaleTotal(sale);
+      dayBucket.total += amount;
       dayBucket.count += 1;
-    }
-
-    for (const detail of getSaleDetails(sale)) {
-      const name = detail.nombre_producto || detail.producto?.nombre || 'Producto sin nombre';
-      const previous = productMap.get(name) || { name, units: 0, total: 0 };
-      previous.units += Number(detail.cantidad || 0);
-      previous.total += Number(detail.subtotal || 0);
-      productMap.set(name, previous);
     }
   }
 
@@ -149,7 +166,7 @@ const buildInsights = (sales = [], period = 'week') => {
   const maxDaily = Math.max(...dailySales.map((day) => day.total), 0);
   const maxHour = Math.max(...hours.map((hour) => hour.count), 0);
   const maxProduct = Math.max(...products.map((product) => product.units), 0);
-  const averageTicket = confirmedSales.length ? Math.round(totalRevenue / confirmedSales.length) : 0;
+  const averageTicket = confirmedSales.length ? Math.round(totalConfirmedValue / confirmedSales.length) : 0;
   const payments = PAYMENT_METHODS.map((method) => {
     const values = paymentMap.get(method.value);
     return {
@@ -175,9 +192,11 @@ const buildInsights = (sales = [], period = 'week') => {
     maxProduct,
     peakHour,
     payments,
+    pendingBalance,
     products,
     quotedSales,
     totalItems,
+    totalConfirmedValue,
     totalRevenue
   };
 };
@@ -203,7 +222,7 @@ function MetricCard({ icon: Icon, label, value, detail, tone = 'lime' }) {
 }
 
 function PaymentCard({ payment }) {
-  // Muestra participación de cada método de pago sobre ventas confirmadas.
+  // Muestra participación de cada método sobre pagos efectivamente recibidos.
   const Icon = payment.icon;
   const tones = {
     lime: {
@@ -238,7 +257,7 @@ function PaymentCard({ payment }) {
         </span>
       </div>
       <div className="mt-5 flex items-center justify-between gap-3 text-sm font-semibold text-zinc-400">
-        <span>{payment.count} {payment.count === 1 ? 'venta' : 'ventas'}</span>
+        <span>{payment.count} {payment.count === 1 ? 'pago' : 'pagos'}</span>
         <span>{payment.share}% del ingreso</span>
       </div>
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.07]">
@@ -256,7 +275,7 @@ function EmptyState() {
       </div>
       <h2 className="mt-4 font-display text-2xl font-semibold text-white">Aun no hay ventas para analizar</h2>
       <p className="mx-auto mt-2 max-w-xl text-sm font-medium text-zinc-400">
-        Cuando registres ventas confirmadas, este panel mostrara ganancias, productos destacados y horarios fuertes.
+        Cuando registres ventas confirmadas, este panel mostrara recaudacion, productos destacados y horarios fuertes.
       </p>
     </section>
   );
@@ -318,7 +337,7 @@ export default function DashboardPage() {
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-lime-200/75">Resumen comercial</p>
                 <h2 className="mt-3 max-w-2xl font-display text-3xl font-semibold leading-tight text-white sm:text-4xl">
-                  Ventas confirmadas, demanda y horarios de mayor movimiento
+                  Ventas confirmadas, caja real y horarios de mayor recaudación
                 </h2>
               </div>
               <button
@@ -334,19 +353,21 @@ export default function DashboardPage() {
 
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-[1.25rem] border border-lime-200/15 bg-lime-300/[0.08] p-4">
-                <span className="text-xs font-bold uppercase tracking-[0.24em] text-lime-100/75">Ganancias</span>
+                <span className="text-xs font-bold uppercase tracking-[0.24em] text-lime-100/75">Recaudado</span>
                 <strong className="mt-2 block font-display text-3xl font-semibold text-lime-100">
                   {formatCurrency(insights.totalRevenue)}
                 </strong>
+                <p className="mt-2 text-xs font-semibold text-lime-100/70">Saldo pendiente {formatCurrency(insights.pendingBalance)}</p>
               </div>
               <div className="rounded-[1.25rem] border border-white/10 bg-black/20 p-4">
                 <span className="text-xs font-bold uppercase tracking-[0.24em] text-zinc-500">Ticket medio</span>
                 <strong className="mt-2 block font-display text-2xl font-semibold text-white">
                   {formatCurrency(insights.averageTicket)}
                 </strong>
+                <p className="mt-2 text-xs font-semibold text-zinc-500">Vendido {formatCurrency(insights.totalConfirmedValue)}</p>
               </div>
               <div className="rounded-[1.25rem] border border-white/10 bg-black/20 p-4">
-                <span className="text-xs font-bold uppercase tracking-[0.24em] text-zinc-500">Hora peak</span>
+                <span className="text-xs font-bold uppercase tracking-[0.24em] text-zinc-500">Hora caja peak</span>
                 <strong className="mt-2 block font-display text-2xl font-semibold text-white">{peakHourLabel}</strong>
               </div>
             </div>
@@ -378,7 +399,7 @@ export default function DashboardPage() {
             <div className="mb-3 flex items-end justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.26em] text-zinc-500">Recaudación</p>
-                <h2 className="mt-1 font-display text-xl font-semibold text-white">Ingresos por método de pago</h2>
+                <h2 className="mt-1 font-display text-xl font-semibold text-white">Pagos por método</h2>
               </div>
               <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs font-bold text-zinc-400">
                 {currentPeriod.label}
@@ -395,7 +416,7 @@ export default function DashboardPage() {
                 <div className="mb-5 flex items-center justify-between gap-3">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.26em] text-zinc-500">{currentPeriod.chartLabel}</p>
-                    <h2 className="mt-2 font-display text-xl font-semibold text-white">Pulso diario de ventas</h2>
+                    <h2 className="mt-2 font-display text-xl font-semibold text-white">Recaudación diaria</h2>
                   </div>
                   <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-lime-100">Confirmadas</span>
                 </div>
@@ -480,7 +501,7 @@ export default function DashboardPage() {
 
             <div className="glass-card rounded-[1.75rem] border border-white/10 p-5 shadow-soft">
               <p className="text-xs font-semibold uppercase tracking-[0.26em] text-zinc-500">Horario</p>
-              <h2 className="mt-2 font-display text-xl font-semibold text-white">Horas con mayor venta</h2>
+              <h2 className="mt-2 font-display text-xl font-semibold text-white">Horas con mayor recaudación</h2>
               <div className="mt-5 grid min-h-72 grid-cols-6 items-end gap-2 rounded-[1.25rem] border border-white/10 bg-black/20 p-4 sm:grid-cols-8 md:grid-cols-12">
                 {insights.hours.length ? (
                   insights.hours.map((hour) => (

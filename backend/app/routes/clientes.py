@@ -12,9 +12,14 @@ service = ClienteService()
 
 
 @router.get("")
-def listar_clientes(q: str | None = None, limit: int | None = Query(default=None), db: Session = Depends(get_db)):
+def listar_clientes(
+    q: str | None = None,
+    con_deuda: bool | None = None,
+    limit: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
     """Lista clientes y soporta búsqueda para autocompletar en cotizaciones."""
-    rows, meta = service.list(db, q, limit)
+    rows, meta = service.list(db, q, limit, con_deuda)
     return success([ClienteRead.model_validate(row).model_dump() for row in rows], meta)
 
 

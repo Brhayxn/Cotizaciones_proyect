@@ -32,7 +32,7 @@ def listar_movimientos(
 
 @router.post("/movimientos", status_code=status.HTTP_201_CREATED)
 async def registrar_movimiento_manual(payload: MovimientoCreate, db: Session = Depends(get_db)):
-    """Registra ajuste/abastecimiento manual y avisa el cambio de stock."""
+    """Registra merma/abastecimiento manual y avisa el cambio de stock."""
     movimiento, product_id = service.create_manual_movement(db, payload)
     await emit_stock_updates(db, [product_id], payload.tipo_movimiento)
     return success(MovimientoRead.model_validate(movimiento).model_dump(mode="json"))

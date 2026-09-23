@@ -1,6 +1,6 @@
 from collections.abc import Generator
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.core.config import get_settings
@@ -30,7 +30,22 @@ def create_tables() -> None:
     from app import models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+    apply_schema_updates()
     create_database_optimizations()
+
+
+def apply_schema_updates() -> None:
+    """Aplica cambios aditivos que create_all no incorpora en tablas existentes."""
+    inspector = inspect(engine)
+    if "ventas" not in inspector.get_table_names():
+        return
+    columns = {column["name"] for column in inspector.get_columns("ventas")}
+    statements = []
+    if "estado_pago" not in columns:
+        statements.append("ALTER TABLE ventas ADD COLUMN estado_pago VARCHAR(20) NOT NULL DEFAULT 'pendiente'")
+    with engine.begin() as connection:
+        for statement in statements:
+            connection.execute(text(statement))
 
 
 def create_database_optimizations() -> None:

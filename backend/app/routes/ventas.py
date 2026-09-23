@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.responses import success
-from app.schemas.venta import VentaAnular, VentaConfirmar, VentaCreate, VentaRead
+from app.schemas.venta import PagoVentaCreate, VentaAnular, VentaConfirmar, VentaCreate, VentaRead
 from app.services.realtime_service import emit_stock_updates
 from app.services.venta_service import VentaService
 
@@ -58,8 +58,15 @@ async def crear_venta(payload: VentaCreate, db: Session = Depends(get_db)):
 @router.patch("/{venta_id}/confirmar")
 async def confirmar_venta(venta_id: int, payload: VentaConfirmar, db: Session = Depends(get_db)):
     """Confirma una cotización existente y sincroniza el stock actualizado."""
-    venta, product_ids = service.confirm(db, venta_id, payload.metodo_pago)
+    venta, product_ids = service.confirm(db, venta_id, payload.metodo_pago, payload.monto_pagado)
     await emit_stock_updates(db, product_ids, "venta", payload.socket_id)
+    return success(VentaRead.model_validate(venta).model_dump(mode="json"))
+
+
+@router.post("/{venta_id}/pagos")
+def registrar_pago_venta(venta_id: int, payload: PagoVentaCreate, db: Session = Depends(get_db)):
+    """Registra un abono posterior y actualiza el estado financiero de la venta."""
+    venta = service.register_payment(db, venta_id, payload)
     return success(VentaRead.model_validate(venta).model_dump(mode="json"))
 
 

@@ -39,5 +39,7 @@ class ClienteUpdate(BaseModel):
 
 class ClienteRead(ClienteBase):
     id: int
+    deuda_total: int = 0
+    ventas_pendientes: int = 0
 
     model_config = {"from_attributes": True}
